@@ -1,0 +1,16 @@
+{
+  "name": "Neon VJ Engine",
+  "short_name": "Neon VJ",
+  "description": "35 Unique Scenes & Eclipse EQ Edition",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#020406",
+  "theme_color": "#020406",
+  "icons": [
+    {
+      "src": "https://img.icons8.com/nolan/256/equalizer.png",
+      "sizes": "256x256",
+      "type": "image/png"
+    }
+  ]
+}

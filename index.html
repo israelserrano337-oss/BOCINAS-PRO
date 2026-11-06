@@ -1,0 +1,3602 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <!-- PWA / iOS Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Neon VJ">
+    <meta name="theme-color" content="#020406">
+    <meta name="mobile-web-app-capable" content="yes">
+    
+    <!-- Icon for home screen -->
+    <link rel="apple-touch-icon" href="https://img.icons8.com/nolan/256/equalizer.png">
+    <link rel="manifest" href="/manifest.json">
+
+    <title>NEON VJ ENGINE - Synthwave Studio & 3D Visualizer</title>
+    <meta name="description" content="Estudio visual VJ 9:16 con 35 escenas 3D reactivas, mallas synthwave personalizables, ecualizadores dinámicos, audio reactivo y exportación en alta definición optimizado para iOS.">
+    <meta property="og:title" content="NEON VJ ENGINE - Synthwave Studio & 3D Visualizer">
+    <meta property="og:description" content="Estudio visual VJ 9:16 con 35 escenas 3D reactivas, mallas synthwave personalizables, ecualizadores dinámicos, audio reactivo y exportación en alta definición optimizado para iOS.">
+
+    <!-- Tailwind CSS & Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.3/build/mp4-muxer.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;600;700;900&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg: #020406;
+            --pn: #070c10;
+            --bd: #1a2535;
+            --pk: #ff2d78;
+            --cy: #00f5ff;
+            --gn: #39ff14;
+            --tx: #c8d8e8;
+            --dm: #3a5060;
+        }
+
+        .retro-glow {
+            text-shadow: 0 0 10px #ff00ff, 0 0 20px #ff00ff, 0 0 30px #00ffff;
+        }
+
+        .custom-scroll::-webkit-scrollbar {
+            height: 4px;
+            width: 4px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: rgba(255, 0, 255, 0.4);
+            border-radius: 4px;
+        }
+
+        body {
+            font-family: 'Share Tech Mono', monospace;
+            background-color: var(--bg);
+            color: var(--tx);
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* Glassmorphism Panels */
+        .glass-panel {
+            background: rgba(7, 12, 16, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .glass-btn {
+            background: rgba(10, 16, 24, 0.7);
+            border: 1px solid var(--bd);
+            transition: all 0.15s ease;
+            font-family: 'Orbitron', sans-serif;
+        }
+        .glass-btn:hover {
+            border-color: var(--cy);
+            color: var(--cy);
+            box-shadow: 0 0 10px rgba(0, 245, 255, 0.3);
+        }
+        .glass-btn.active {
+            border-color: var(--cy);
+            color: var(--cy);
+            background: rgba(0, 245, 255, 0.15);
+            box-shadow: 0 0 12px rgba(0, 245, 255, 0.4);
+        }
+        .glass-btn.active-pk {
+            border-color: var(--pk);
+            color: var(--pk);
+            background: rgba(255, 45, 120, 0.15);
+            box-shadow: 0 0 12px rgba(255, 45, 120, 0.4);
+        }
+
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #05080c;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1a2535;
+            border-radius: 2px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--cy);
+        }
+
+        /* Input Custom Sliders */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: #101822;
+            border-radius: 9999px;
+            height: 4px;
+            border: 1px solid var(--bd);
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 12px;
+            width: 12px;
+            border-radius: 50%;
+            background: var(--cy);
+            cursor: pointer;
+            box-shadow: 0 0 8px var(--cy);
+        }
+
+        /* Scanline Overlay */
+        #scanlines {
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 0, 0, 0.12) 2px, rgba(0, 0, 0, 0.12) 4px);
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        /* Recording Indicator Pulse */
+        @keyframes rec-pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.95); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        .animate-rec {
+            animation: rec-pulse 1.2s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="h-[100dvh] w-[100dvw] flex bg-[#020406] text-slate-200 overflow-hidden">
+
+    <!-- LEFT SIDEBAR CONTROL PANEL -->
+    <aside id="controlSidebar" class="w-[360px] max-w-[90vw] h-full flex-shrink-0 glass-panel border-r border-slate-800 flex flex-col z-[60] absolute md:relative transition-transform duration-300 transform -translate-x-full md:translate-x-0" style="padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px);">
+        
+        <!-- Header Title -->
+        <div class="p-3 border-b border-slate-800/80 bg-slate-950/80 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded bg-gradient-to-tr from-pink-600 via-purple-600 to-cyan-400 flex items-center justify-center shadow-md shadow-cyan-500/20">
+                    <i class="fa-solid font-black text-white text-xs">VJ</i>
+                </div>
+                <div>
+                    <h1 class="text-xs font-black tracking-widest text-cyan-400 font-['Orbitron'] flex items-center gap-2">
+                        NEON VJ ENGINE
+                        <span class="text-[8px] px-1.5 py-0.5 rounded bg-pink-500/20 text-pink-400 border border-pink-500/30">35 SCENES</span>
+                    </h1>
+                    <p class="text-[9px] text-slate-400 tracking-wider">ULTIMATE 3D & ECLIPSE VJ STUDIO</p>
+                </div>
+            </div>
+            <div class="flex gap-1.5 items-center">
+                <button type="button" onclick="openIosInstallModal()" class="glass-btn px-2 py-1 rounded text-cyan-300 hover:text-white text-[9px] font-['Orbitron'] flex items-center gap-1 active:scale-95 transition" title="Añadir a Pantalla de Inicio en iPhone 15">
+                    <i class="fa-solid fa-arrow-up-from-bracket"></i>
+                    <span class="hidden sm:inline">Instalar iOS</span>
+                </button>
+                <div id="statusDot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]" title="Sistema Listo"></div>
+                <button onclick="toggleSidebar()" class="md:hidden glass-btn w-6 h-6 rounded text-white flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Scrollable Control Stack -->
+        <div class="flex-1 overflow-y-auto space-y-3 p-3 text-[11px]">
+
+            <!-- Audio Input Section -->
+            <div class="p-2.5 border border-slate-800/80 rounded-lg bg-slate-900/40">
+                <div class="text-[9px] text-cyan-400 font-bold tracking-widest font-['Orbitron'] mb-2 uppercase flex justify-between">
+                    <span><i class="fa-solid fa-music mr-1"></i> Entrada de Audio</span>
+                    <span id="audioStatus" class="text-slate-400 font-normal">Sin Audio</span>
+                </div>
+                
+                <div class="flex items-center gap-1.5 mb-2">
+                    <label class="flex-1 glass-btn py-1.5 px-2 rounded text-[10px] font-semibold text-slate-300 flex items-center justify-center gap-1.5 cursor-pointer hover:text-white">
+                        <i class="fa-solid fa-file-audio text-cyan-400"></i>
+                        <span id="aFileName" class="truncate max-w-[110px]">Cargar MP3/M4A</span>
+                        <input type="file" id="aFileInput" accept="audio/*,.mp3,.wav,.m4a,audio/mp4,audio/mpeg,audio/x-m4a,application/mp4" class="hidden" onchange="handleAudioUpload(event)">
+                    </label>
+                    <button id="playBtn" onclick="togglePlayPause()" class="glass-btn px-2.5 py-1.5 rounded text-[10px] text-emerald-400 font-bold hover:bg-emerald-500/20" title="Play / Pausa">
+                        <i class="fa-solid fa-play"></i>
+                    </button>
+                    <button id="demoSynthBtn" onclick="toggleDemoSynth()" class="glass-btn px-2 py-1.5 rounded text-[10px] text-pink-400 font-bold hover:bg-pink-500/20" title="Demo Synthwave 125 BPM">
+                        <i class="fa-solid fa-music"></i>
+                    </button>
+                    <button id="demoBtn" onclick="toggleDemoBeat()" class="glass-btn px-2 py-1.5 rounded text-[10px] text-amber-400 font-bold hover:bg-amber-500/20" title="Demo Beat 128 BPM">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    </button>
+                    <button id="micBtn" onclick="toggleMicrophone()" class="glass-btn px-2 py-1.5 rounded text-[10px] text-cyan-300 font-bold hover:bg-cyan-500/20" title="Micrófono en Vivo">
+                        <i class="fa-solid fa-microphone"></i>
+                    </button>
+                </div>
+
+                <div class="mt-2 mb-3" id="audioTimelineContainer" style="display: none;">
+                    <div class="flex justify-between items-center text-[9px] text-slate-400 mb-1">
+                        <span id="lblAudioTime">0:00</span>
+                        <span id="lblAudioDuration">0:00</span>
+                    </div>
+                    <input type="range" id="rngAudioTime" min="0" max="100" step="0.1" value="0" class="w-full" oninput="seekAudio(this.value)">
+                </div>
+
+                <!-- Frequency VU Meters -->
+                <div class="grid grid-cols-4 gap-1.5 h-8 bg-black/60 p-1 rounded border border-slate-800/80">
+                    <div class="flex flex-col items-center justify-end h-full">
+                        <div class="w-full bg-slate-800/60 rounded-sm overflow-hidden flex-1 relative">
+                            <div id="vuBass" class="absolute bottom-0 w-full bg-gradient-to-t from-pink-600 to-pink-400 transition-all duration-75" style="height: 0%"></div>
+                        </div>
+                        <span class="text-[7px] text-slate-400 mt-0.5">BASS</span>
+                    </div>
+                    <div class="flex flex-col items-center justify-end h-full">
+                        <div class="w-full bg-slate-800/60 rounded-sm overflow-hidden flex-1 relative">
+                            <div id="vuMid" class="absolute bottom-0 w-full bg-gradient-to-t from-cyan-600 to-cyan-400 transition-all duration-75" style="height: 0%"></div>
+                        </div>
+                        <span class="text-[7px] text-slate-400 mt-0.5">MID</span>
+                    </div>
+                    <div class="flex flex-col items-center justify-end h-full">
+                        <div class="w-full bg-slate-800/60 rounded-sm overflow-hidden flex-1 relative">
+                            <div id="vuHi" class="absolute bottom-0 w-full bg-gradient-to-t from-emerald-600 to-emerald-400 transition-all duration-75" style="height: 0%"></div>
+                        </div>
+                        <span class="text-[7px] text-slate-400 mt-0.5">HIGH</span>
+                    </div>
+                    <div class="flex flex-col items-center justify-end h-full">
+                        <div class="w-full bg-slate-800/60 rounded-sm overflow-hidden flex-1 relative">
+                            <div id="vuVol" class="absolute bottom-0 w-full bg-gradient-to-t from-slate-400 to-white transition-all duration-75" style="height: 0%"></div>
+                        </div>
+                        <span class="text-[7px] text-slate-400 mt-0.5">VOL</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VJ Automation & Camera Control -->
+            <div class="p-2.5 border border-slate-800/80 rounded-lg bg-slate-900/40 space-y-2">
+                <div class="text-[9px] text-cyan-400 font-bold tracking-widest font-['Orbitron'] uppercase">
+                    <i class="fa-solid fa-sliders mr-1"></i> Control VJ & Camára
+                </div>
+
+                <div class="flex gap-1.5">
+                    <button id="btnAutoSeq" onclick="toggleAutoSeq()" class="flex-1 glass-btn py-1 px-2 rounded text-[9px] font-bold text-slate-300">
+                        ⚡ SECUENCIA AUTO
+                    </button>
+                    <button id="btnAutoRot" onclick="toggleAutoRot()" class="flex-1 glass-btn active py-1 px-2 rounded text-[9px] font-bold text-slate-300">
+                        ⟳ ORBITA 3D
+                    </button>
+                </div>
+
+                <div class="space-y-1.5 pt-1">
+                    <div class="flex justify-between items-center text-[9px] text-slate-400">
+                        <span>Sensibilidad Audio</span>
+                        <span id="lblSens" class="text-cyan-400 font-mono">1.8x</span>
+                    </div>
+                    <input type="range" id="rngSens" min="0.5" max="4.0" step="0.1" value="1.8" class="w-full" oninput="updateParam('sens', this.value)">
+
+                    <div class="flex justify-between items-center text-[9px] text-slate-400">
+                        <span>Velocidad Camára</span>
+                        <span id="lblCamSpeed" class="text-cyan-400 font-mono">1.0x</span>
+                    </div>
+                    <input type="range" id="rngCamSpeed" min="0.2" max="3.0" step="0.1" value="1.0" class="w-full" oninput="updateParam('camSpeed', this.value)">
+
+                    <div class="flex justify-between items-center text-[9px] text-slate-400">
+                        <span>Cambio Escena (s)</span>
+                        <span id="lblAutoInterval" class="text-cyan-400 font-mono">8s</span>
+                    </div>
+                    <input type="range" id="rngAutoInterval" min="3" max="30" step="1" value="8" class="w-full" oninput="updateParam('autoInterval', this.value)">
+                </div>
+            </div>
+
+            <!-- Synthwave Grids & Floors Section -->
+            <div class="p-2.5 border border-purple-500/30 rounded-lg bg-slate-900/40 space-y-2">
+                <div class="text-[9px] text-purple-400 font-bold tracking-widest font-['Orbitron'] uppercase flex justify-between items-center">
+                    <span><i class="fa-solid fa-border-all mr-1"></i> Malla & Suelo Synthwave</span>
+                    <span id="lblMeshStatus" class="text-purple-400 font-normal">ON</span>
+                </div>
+
+                <div class="flex gap-1.5">
+                    <button id="btnToggleMesh" onclick="toggleMesh()" class="flex-1 glass-btn active-pk py-1 px-2 rounded text-[9px] font-bold">
+                        ◉ MALLA SYNTHWAVE
+                    </button>
+                </div>
+
+                <div class="space-y-1.5 pt-1">
+                    <div class="flex justify-between items-center text-[9px] text-slate-400">
+                        <span>Tipo de Malla:</span>
+                    </div>
+                    <select id="selGridType" onchange="setGridType(this.value)" class="w-full bg-black/80 text-white px-2 py-1 rounded border border-purple-500/40 text-[9px] font-mono focus:outline-none">
+                        <option value="0">1. Synthwave Grid Original (Perspectiva)</option>
+                        <option value="1">2. Cyberpunk Grid Futurista (Pulso)</option>
+                        <option value="2">3. Starfield Tunnel Cuántico (Anillos)</option>
+                        <option value="3">4. Matrix Digital Waves (Ondas)</option>
+                    </select>
+
+                    <div class="flex justify-between items-center text-[9px] text-slate-400 pt-1">
+                        <span>Color de Malla</span>
+                        <div class="flex items-center gap-1.5">
+                            <input type="color" id="gridColorPicker" value="#ff00ff" oninput="setGridColor(this.value)" class="w-5 h-5 rounded border-0 cursor-pointer bg-transparent">
+                            <button onclick="setGridColor('#ff00ff')" class="w-3.5 h-3.5 rounded-full bg-[#ff00ff] border border-white/20" title="Neon Pink"></button>
+                            <button onclick="setGridColor('#00ffff')" class="w-3.5 h-3.5 rounded-full bg-[#00ffff] border border-white/20" title="Cyber Cyan"></button>
+                            <button onclick="setGridColor('#39ff14')" class="w-3.5 h-3.5 rounded-full bg-[#39ff14] border border-white/20" title="Matrix Green"></button>
+                            <button onclick="setGridColor('#ffaa00')" class="w-3.5 h-3.5 rounded-full bg-[#ffaa00] border border-white/20" title="Sunset Gold"></button>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between items-center text-[9px] text-slate-400 pt-1">
+                        <span>Altura Horizonte</span>
+                        <span id="lblGridHorizon" class="text-purple-400 font-mono">60%</span>
+                    </div>
+                    <input type="range" id="rngGridHorizon" min="35" max="85" step="1" value="60" class="w-full" oninput="updateParam('gridHorizon', this.value)">
+
+                    <div class="flex justify-between items-center text-[9px] text-slate-400 pt-1">
+                        <span>Reactividad Beat (Velocidad)</span>
+                        <span id="lblGridSpeed" class="text-purple-400 font-mono">1.0x</span>
+                    </div>
+                    <input type="range" id="rngGridSpeed" min="0.2" max="3.0" step="0.1" value="1.0" class="w-full" oninput="updateParam('gridSpeed', this.value)">
+                </div>
+            </div>
+
+            <!-- 2D Equalizers Studio Section -->
+            <div class="p-2.5 border border-cyan-500/30 rounded-lg bg-slate-900/40 space-y-2">
+                <div class="text-[9px] text-cyan-400 font-bold tracking-widest font-['Orbitron'] uppercase flex justify-between items-center">
+                    <span><i class="fa-solid fa-chart-simple mr-1"></i> Ecualizadores 2D</span>
+                    <span id="lblEqStatus" class="text-cyan-400 font-normal">ON</span>
+                </div>
+
+                <div class="flex gap-1.5">
+                    <button id="btnToggleEq" onclick="toggleEq()" class="flex-1 glass-btn active py-1 px-2 rounded text-[9px] font-bold">
+                        ◉ ECUALIZADOR 2D
+                    </button>
+                    <button id="btnEclipseBg" onclick="toggleEclipseBg()" class="flex-1 glass-btn active py-1 px-2 rounded text-[9px] font-bold" title="Aura y Rayos Cósmicos">
+                        AURA NEÓN
+                    </button>
+                </div>
+
+                <div class="space-y-1.5 pt-1">
+                    <div class="flex justify-between items-center text-[9px] text-slate-400">
+                        <span>Estilo de Ecualizador:</span>
+                    </div>
+                    <select id="selEqStyle" onchange="setEqStyle(this.value)" class="w-full bg-black/80 text-white px-2 py-1 rounded border border-cyan-500/40 text-[9px] font-mono focus:outline-none">
+                        <option value="0">1. Espejo Segmentado (Synthwave Rainbow)</option>
+                        <option value="1">2. Ecualizador Eclipse 360° (Neón Cyber)</option>
+                        <option value="2">3. Circular Radial Espectral</option>
+                        <option value="3">4. Cyber Pulse Blocks</option>
+                        <option value="4">5. Neon Spectrum Lines</option>
+                    </select>
+
+                    <div class="flex justify-between items-center text-[9px] text-slate-400 pt-1">
+                        <span>Color Personalizado EQ</span>
+                        <div class="flex items-center gap-1.5">
+                            <input type="color" id="eqColorPicker" value="#00ffff" oninput="setEqColor(this.value)" class="w-5 h-5 rounded border-0 cursor-pointer bg-transparent">
+                            <button onclick="setEqColor('#00ffff')" class="w-3.5 h-3.5 rounded-full bg-[#00ffff] border border-white/20" title="Cyber Cyan"></button>
+                            <button onclick="setEqColor('#ff0077')" class="w-3.5 h-3.5 rounded-full bg-[#ff0077] border border-white/20" title="Neon Pink"></button>
+                            <button onclick="setEqColor('#39ff14')" class="w-3.5 h-3.5 rounded-full bg-[#39ff14] border border-white/20" title="Acid Green"></button>
+                            <button onclick="setEqColor('#ffcc00')" class="w-3.5 h-3.5 rounded-full bg-[#ffcc00] border border-white/20" title="Sun Yellow"></button>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between items-center text-[9px] text-slate-400 pt-1">
+                        <span>Tamaño / Escala</span>
+                        <span id="lblEqScale" class="text-cyan-400 font-mono">1.0x</span>
+                    </div>
+                    <input type="range" id="rngEqScale" min="0.3" max="2.5" step="0.1" value="1.0" class="w-full" oninput="updateParam('eqScale', this.value)">
+
+                    <div class="flex justify-between items-center text-[9px] text-slate-400 pt-1">
+                        <span>Posición Vertical Y</span>
+                        <span id="lblEqCenterY" class="text-cyan-400 font-mono">38%</span>
+                    </div>
+                    <input type="range" id="rngEqCenterY" min="20" max="75" step="1" value="38" class="w-full" oninput="updateParam('eqCenterY', this.value)">
+
+                    <div id="eclipseSpecificControls" class="space-y-1.5 pt-1 border-t border-slate-800/80">
+                        <div class="flex justify-between items-center text-[9px] text-slate-400">
+                            <span>Kick Flash</span>
+                            <span id="lblFlash" class="text-pink-400 font-mono">0.65</span>
+                        </div>
+                        <input type="range" id="rngFlash" min="0.1" max="1.5" step="0.05" value="0.65" class="w-full" oninput="updateParam('flash', this.value)">
+
+                        <div class="flex justify-between items-center text-[9px] text-slate-400">
+                            <span>Shake Cámara (Impacto)</span>
+                            <span id="lblShake" class="text-pink-400 font-mono">14</span>
+                        </div>
+                        <input type="range" id="rngShake" min="0" max="35" step="1" value="14" class="w-full" oninput="updateParam('shake', this.value)">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Media 2D Upload Overlay -->
+            <div class="p-2.5 border border-slate-800/80 rounded-lg bg-slate-900/40 space-y-2">
+                <div class="text-[9px] text-emerald-400 font-bold tracking-widest font-['Orbitron'] uppercase">
+                    <i class="fa-solid fa-image mr-1"></i> Capa de Medios 2D
+                </div>
+                <div class="flex items-center gap-2">
+                    <label class="flex-1 glass-btn py-1.5 px-2 rounded text-[10px] font-semibold text-slate-300 flex items-center justify-center gap-2 cursor-pointer hover:text-white">
+                        <i class="fa-solid fa-upload text-emerald-400"></i>
+                        <span>Subir Imagen...</span>
+                        <input type="file" id="mediaInput" accept="image/*" class="hidden" onchange="handleMediaUpload(event)">
+                    </label>
+                    <button onclick="clearMediaOverlay()" class="glass-btn px-2.5 py-1.5 rounded text-[10px] text-rose-400 font-bold hover:bg-rose-500/20" title="Limpiar Overlay">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
+                <div id="mediaStatus" class="text-[9px] text-slate-400 text-center italic">Sin overlay 2D activo</div>
+            </div>
+
+            <!-- Strobe Flash Manual -->
+            <div class="p-2.5 border border-slate-800/80 rounded-lg bg-slate-900/40">
+                <button id="strobeBtn" onmousedown="setStrobe(true)" onmouseup="setStrobe(false)" ontouchstart="setStrobe(true)" ontouchend="setStrobe(false)" 
+                        class="w-full py-2 bg-slate-950 border-2 border-white/80 hover:bg-white hover:text-black transition-all text-white font-['Orbitron'] font-bold text-[10px] rounded tracking-widest active:scale-[0.98]">
+                    ⚡ MANTENER PRESIONADO = STROBE FLASH
+                </button>
+            </div>
+
+            <!-- Scene Category Tabs -->
+            <div class="pt-2">
+                <div class="text-[9px] text-cyan-400 font-bold tracking-widest font-['Orbitron'] uppercase mb-1.5">
+                    catálogo 3d (35 escenas únicas)
+                </div>
+                <div class="flex gap-1 border-b border-slate-800 pb-1 text-[9px]">
+                    <button onclick="filterCat('all')" id="catTab-all" class="px-2 py-1 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold">Todas (35)</button>
+                    <button onclick="filterCat('engine3d')" id="catTab-engine3d" class="px-2 py-1 rounded text-slate-400 hover:text-white">PHONK 3D (20)</button>
+                    <button onclick="filterCat('eq3d')" id="catTab-eq3d" class="px-2 py-1 rounded text-slate-400 hover:text-white">EQ Ultra 3D (15)</button>
+                </div>
+            </div>
+
+            <!-- Scene Catalog List -->
+            <div class="space-y-1 max-h-[220px] overflow-y-auto pr-1" id="sceneCatalogList">
+                <!-- Populated dynamically -->
+            </div>
+
+        </div>
+
+        <!-- Export Recording Footer -->
+        <div class="p-3 border-t border-slate-800/80 bg-black/85 flex flex-col gap-2">
+            <button id="recordBtn" onclick="openExportModal()" class="w-full bg-gradient-to-r from-rose-600 via-pink-600 to-purple-600 hover:from-rose-500 hover:to-purple-500 text-white border border-rose-400/50 py-3 rounded-xl text-[11px] font-['Orbitron'] font-bold flex items-center justify-center gap-2 transition-all shadow-xl shadow-rose-950/60 active:scale-95">
+                <i class="fa-solid fa-circle text-[8px] text-white animate-pulse"></i> EXPORTAR MP4 (IOS & TIKTOK)
+            </button>
+            <div class="flex justify-between items-center text-[9px] text-slate-400 font-mono px-0.5">
+                <span>H.264 + AAC (Carrete iOS)</span>
+                <span class="text-cyan-400 font-bold">1080×1920 (9:16)</span>
+            </div>
+            <a id="downloadLink" class="hidden"></a>
+        </div>
+
+    </aside>
+
+    <!-- RIGHT MAIN VIEWPORT (9:16 MASTER CANVAS) -->
+    <main class="flex-1 h-full bg-[#010203] relative flex items-center justify-center p-4 overflow-hidden">
+        
+        <!-- Mobile Sidebar Toggle -->
+        <button onclick="toggleSidebar()" class="md:hidden absolute left-4 z-50 glass-btn w-12 h-12 rounded-full text-white flex items-center justify-center shadow-xl border border-white/20 active:scale-95 transition-transform" style="top: calc(env(safe-area-inset-top, 0px) + 16px);">
+            <i class="fa-solid fa-bars text-lg"></i>
+        </button>
+
+        <!-- Ambient Back Glow -->
+        <div id="ambientGlow" class="absolute w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-[140px] pointer-events-none transition-all duration-700"></div>
+
+        <!-- 9:16 Canvas Wrapper Container -->
+        <div id="previewWrapper" class="relative aspect-[9/16] h-[94vh] max-w-full glass-panel rounded-xl overflow-hidden border-2 border-slate-800/80 shadow-2xl flex items-center justify-center bg-black">
+            
+            <!-- MASTER COMPOSITE CANVAS (3D WebGL + 2D Eclipse EQ + Media overlays combined for export) -->
+            <canvas id="masterCanvas" class="w-full h-full object-contain"></canvas>
+
+            <!-- Retro Scanline Overlay -->
+            <div id="scanlines"></div>
+
+            <!-- Target HUD Corners -->
+            <div class="absolute top-2 left-2 w-3 h-3 border-t-2 border-l-2 border-cyan-400/60 pointer-events-none z-10"></div>
+            <div class="absolute top-2 right-2 w-3 h-3 border-t-2 border-r-2 border-cyan-400/60 pointer-events-none z-10"></div>
+            <div class="absolute bottom-2 left-2 w-3 h-3 border-b-2 border-l-2 border-cyan-400/60 pointer-events-none z-10"></div>
+            <div class="absolute bottom-2 right-2 w-3 h-3 border-b-2 border-r-2 border-cyan-400/60 pointer-events-none z-10"></div>
+
+            <!-- Active HUD Overlay Tag -->
+            <div class="absolute top-4 left-4 right-4 flex items-center justify-between pointer-events-none z-10">
+                <div class="bg-black/70 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 flex items-center gap-2 shadow-lg">
+                    <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_#00f5ff]"></span>
+                    <span id="hudSceneTag" class="text-[10px] font-mono font-bold tracking-widest text-slate-200 drop-shadow-md">3D 01 • REJILLA INFINITA</span>
+                </div>
+                <div id="recIndicator" class="hidden bg-rose-600/90 backdrop-blur-md px-3 py-1 rounded-full border border-rose-400 flex items-center gap-1.5 text-white font-bold text-[10px] animate-rec shadow-[0_0_15px_#e11d48]">
+                    <i class="fa-solid fa-circle text-[8px]"></i> GRABANDO 9:16
+                </div>
+            </div>
+
+            <!-- Floating Quick Bar (Pantalla Libre & Controles Rápidos Móvil/iOS) -->
+            <div id="quickUiContainer" class="absolute bottom-3 left-1/2 transform -translate-x-1/2 z-20 w-[92%] max-w-[430px] transition-all duration-300">
+                <div class="bg-black/85 backdrop-blur-md border border-purple-500/40 p-2.5 rounded-2xl shadow-[0_0_25px_rgba(255,0,255,0.25)] flex flex-col items-center w-full">
+                    <div class="flex items-center justify-between w-full mb-1.5 px-1">
+                        <span class="text-white font-bold text-[10px] tracking-wider uppercase font-['Orbitron'] retro-glow flex items-center gap-1.5">
+                            <i class="fa-solid fa-wave-square text-cyan-400"></i> Mallas & EQ 9:16
+                        </span>
+                        <button id="toggleQuickUiBtn" onclick="toggleQuickUi()" class="text-purple-300 hover:text-white text-[9px] bg-purple-950/60 px-2 py-0.5 rounded border border-purple-500/30 transition">
+                            Minimizar (Pantalla Libre)
+                        </button>
+                    </div>
+
+                    <!-- Scrollable horizontal bar -->
+                    <div id="quickScrollControls" class="custom-scroll flex items-center gap-2 w-full overflow-x-auto pb-1 pt-0.5 px-0.5 whitespace-nowrap">
+                        <!-- Add to Home Screen Button -->
+                        <button onclick="openIosInstallModal()" class="flex-shrink-0 px-2.5 py-1.5 bg-slate-900/90 hover:bg-slate-800 text-cyan-300 hover:text-white font-bold rounded-lg border border-cyan-500/30 transition transform active:scale-95 text-[10px] flex items-center gap-1 font-['Orbitron']">
+                            <i class="fa-solid fa-arrow-up-from-bracket text-[9px]"></i>
+                            <span>Añadir a Inicio</span>
+                        </button>
+
+                        <!-- Quick Export MP4 Button -->
+                        <button onclick="openExportModal()" id="btnQuickExport" class="flex-shrink-0 px-3 py-1.5 bg-gradient-to-r from-rose-600 via-pink-600 to-purple-600 hover:from-rose-500 hover:to-purple-500 text-white font-bold rounded-lg shadow-lg shadow-rose-950/50 transition transform active:scale-95 text-[10px] flex items-center gap-1.5 font-['Orbitron'] border border-rose-400/40">
+                            <i class="fa-solid fa-circle text-[7px] text-white animate-pulse"></i>
+                            <span>Exportar MP4</span>
+                        </button>
+
+                        <!-- Play/Pause / Demo Synth -->
+                        <button onclick="toggleDemoSynth()" id="btnQuickDemo" class="flex-shrink-0 px-2.5 py-1.5 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold rounded-lg shadow-md transition transform active:scale-95 text-[10px] flex items-center gap-1">
+                            <i class="fa-solid fa-play text-[9px]"></i>
+                            <span id="quickPlayText">Demo Synth</span>
+                        </button>
+
+                        <!-- Load MP3 / Audio -->
+                        <label class="flex-shrink-0 px-2.5 py-1.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold rounded-lg shadow-md transition transform active:scale-95 text-[10px] flex items-center gap-1 cursor-pointer">
+                            <i class="fa-solid fa-upload text-[9px]"></i>
+                            <span>Cargar MP3/M4A</span>
+                            <input type="file" accept="audio/*,.mp3,.wav,.m4a,audio/mp4,audio/mpeg,audio/x-m4a,application/mp4" class="hidden" onchange="handleAudioUpload(event)">
+                        </label>
+
+                        <!-- Mic -->
+                        <button onclick="toggleMicrophone()" id="btnQuickMic" class="flex-shrink-0 px-2 py-1.5 bg-gray-800/90 hover:bg-cyan-700 text-cyan-300 hover:text-white font-bold rounded-lg border border-cyan-500/30 transition transform active:scale-95 text-[10px] flex items-center gap-1">
+                            <i class="fa-solid fa-microphone text-[9px]"></i>
+                            <span>Mic</span>
+                        </button>
+
+                        <!-- Selector Malla -->
+                        <div class="flex-shrink-0 flex items-center gap-1 bg-gray-900/90 px-2 py-1 rounded-lg border border-purple-500/30 text-[10px] text-gray-300">
+                            <span class="text-[9px] uppercase font-bold text-purple-300">Malla:</span>
+                            <select id="quickGridSelect" onchange="setGridType(this.value)" class="bg-black text-white px-1.5 py-0.5 rounded border border-purple-500/40 text-[9px] focus:outline-none">
+                                <option value="0">1. Synthwave Grid (Original)</option>
+                                <option value="1">2. Cyberpunk Grid Futurista</option>
+                                <option value="2">3. Starfield Tunnel Cuántico</option>
+                                <option value="3">4. Matrix Digital Waves</option>
+                                <option value="-1">Off (Sin Malla)</option>
+                            </select>
+                        </div>
+
+                        <!-- Selector Ecualizador -->
+                        <div class="flex-shrink-0 flex items-center gap-1 bg-gray-900/90 px-2 py-1 rounded-lg border border-cyan-500/30 text-[10px] text-gray-300">
+                            <span class="text-[9px] uppercase font-bold text-cyan-300">EQ:</span>
+                            <select id="quickEqSelect" onchange="setEqStyle(this.value)" class="bg-black text-white px-1.5 py-0.5 rounded border border-cyan-500/40 text-[9px] focus:outline-none">
+                                <option value="0">1. Espejo Segmentado (Ref)</option>
+                                <option value="1">2. Ecualizador Eclipse 360°</option>
+                                <option value="2">3. Circular Radial Espectral</option>
+                                <option value="3">4. Cyber Pulse Blocks</option>
+                                <option value="4">5. Neon Spectrum Lines</option>
+                                <option value="-1">Off (Sin EQ)</option>
+                            </select>
+                        </div>
+
+                        <!-- Color Malla -->
+                        <div class="flex-shrink-0 flex items-center gap-1 bg-gray-900/90 px-2 py-1 rounded-lg border border-purple-500/30 text-[9px] text-purple-300">
+                            <span>Color Malla:</span>
+                            <input type="color" id="quickGridColor" value="#ff00ff" oninput="setGridColor(this.value)" class="w-5 h-5 rounded border-0 cursor-pointer bg-transparent">
+                        </div>
+
+                        <!-- Color EQ -->
+                        <div class="flex-shrink-0 flex items-center gap-1 bg-gray-900/90 px-2 py-1 rounded-lg border border-cyan-500/30 text-[9px] text-cyan-300">
+                            <span>Color EQ:</span>
+                            <input type="color" id="quickEqColor" value="#00ffff" oninput="setEqColor(this.value)" class="w-5 h-5 rounded border-0 cursor-pointer bg-transparent">
+                        </div>
+
+                        <!-- Botón Abrir Menú Completo -->
+                        <button onclick="toggleSidebar()" class="flex-shrink-0 px-2 py-1.5 bg-slate-800/90 hover:bg-slate-700 text-slate-200 font-bold rounded-lg border border-white/10 transition text-[9px] flex items-center gap-1">
+                            <i class="fa-solid fa-sliders"></i> Panel 3D
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <script>
+    'use strict';
+
+    // MASTER RESOLUTION (9:16 Vertical TikTok format)
+    const CANVAS_W = 1080; // Upgraded resolution for crisp rendering
+    const CANVAS_H = 1920;
+
+    // CATALOG OF 35 DISTINCT UNIQUE SCENES (No duplicates, pure custom 3D geometry algorithms)
+    const CATALOG = [
+        // 20 PHONK & Motor 3D Reactive Scenes
+        { id: 0, name: "Rejilla Infinita + Pilares", tag: "3D 01", cat: "engine3d", color: "#00f5ff" },
+        { id: 1, name: "Reactor Neón Gyro", tag: "3D 02", cat: "engine3d", color: "#ff2d78" },
+        { id: 2, name: "Tormenta de Partículas", tag: "3D 03", cat: "engine3d", color: "#39ff14" },
+        { id: 3, name: "Túnel Octogonal Torus", tag: "3D 04", cat: "engine3d", color: "#ff7700" },
+        { id: 4, name: "Hipercubo 4D Tesseract", tag: "3D 05", cat: "engine3d", color: "#00ffff" },
+        { id: 5, name: "Doble Hélice ADN", tag: "3D 06", cat: "engine3d", color: "#ff0077" },
+        { id: 6, name: "Synthwave Skyline City", tag: "3D 07", cat: "engine3d", color: "#ff00aa" },
+        { id: 7, name: "Esfera de Cubos Orbitales", tag: "3D 08", cat: "engine3d", color: "#00aaff" },
+        { id: 8, name: "Matriz Espectro 3D", tag: "3D 09", cat: "engine3d", color: "#aa00ff" },
+        { id: 9, name: "Anillos de Saturno Gyro", tag: "3D 10", cat: "engine3d", color: "#ffcc00" },
+        { id: 10, name: "Monolito Cyber Runas", tag: "3D 11", cat: "engine3d", color: "#00ffaa" },
+        { id: 11, name: "Caleidoscopio 3D", tag: "3D 12", cat: "engine3d", color: "#ff3366" },
+        { id: 12, name: "Agujero de Gusano Wormhole", tag: "3D 13", cat: "engine3d", color: "#9900ff" },
+        { id: 13, name: "Cristales Cuánticos", tag: "3D 14", cat: "engine3d", color: "#00ffff" },
+        { id: 14, name: "Lluvia Matrix 3D Cyber", tag: "3D 15", cat: "engine3d", color: "#00ff33" },
+        { id: 15, name: "Galaxia Espiral Estelar", tag: "3D 16", cat: "engine3d", color: "#ff6600" },
+        { id: 16, name: "Núcleo Solar Plasma", tag: "3D 17", cat: "engine3d", color: "#ffaa00" },
+        { id: 17, name: "Merkaba Geometría Sagrada", tag: "3D 18", cat: "engine3d", color: "#00ffbb" },
+        { id: 18, name: "Portal Stargate Ring", tag: "3D 19", cat: "engine3d", color: "#cc00ff" },
+        { id: 19, name: "Cubo Rubik Voxel Explode", tag: "3D 20", cat: "engine3d", color: "#ff0055" },
+
+        // 15 Ultra 3D Equalizers & Visualizers
+        { id: 20, name: "Coliseo de Espectro 3D", tag: "EQ 01", cat: "eq3d", color: "#00e5ff" },
+        { id: 21, name: "Montaña Terreno Reactivo", tag: "EQ 02", cat: "eq3d", color: "#7c4dff" },
+        { id: 22, name: "Anillos Concéntricos EQ", tag: "EQ 03", cat: "eq3d", color: "#ff4081" },
+        { id: 23, name: "Vórtice Cyber Audio", tag: "EQ 04", cat: "eq3d", color: "#00e676" },
+        { id: 24, name: "Esfera Picos Deformable", tag: "EQ 05", cat: "eq3d", color: "#ff9100" },
+        { id: 25, name: "Rascacielos EQ Towers", tag: "EQ 06", cat: "eq3d", color: "#d500f9" },
+        { id: 26, name: "Olas de Luz Ribbon 3D", tag: "EQ 07", cat: "eq3d", color: "#00b0ff" },
+        { id: 27, name: "Matriz Voxel EQ Cubes", tag: "EQ 08", cat: "eq3d", color: "#ff3d00" },
+        { id: 28, name: "Flor Quantum Caleidoscopio", tag: "EQ 09", cat: "eq3d", color: "#651fff" },
+        { id: 29, name: "Nube de Frecuencia Particle", tag: "EQ 10", cat: "eq3d", color: "#0011ff" },
+        { id: 30, name: "Pirámide Sierpinski Fractal", tag: "EQ 11", cat: "eq3d", color: "#ff00b7" },
+        { id: 31, name: "Red Constelación Neural", tag: "EQ 12", cat: "eq3d", color: "#00ffff" },
+        { id: 32, name: "Púlsar Estelar Beam", tag: "EQ 13", cat: "eq3d", color: "#ffab00" },
+        { id: 33, name: "Torre Espiral Helix EQ", tag: "EQ 14", cat: "eq3d", color: "#18ffff" },
+        { id: 34, name: "Mar de Ondas Wireframe", tag: "EQ 15", cat: "eq3d", color: "#2979ff" }
+    ];
+
+    // GLOBAL ENGINE STATE
+    let masterCanvas, masterCtx;
+    let threeCanvas, renderer, tScene, camera;
+    let audioCtx, analyser, audioBuf, audioSourceNode, audioDestination;
+    let currentAudioFile = null;
+    let freqData = new Uint8Array(128);
+    let bass = 0, mid = 0, hi = 0, vol = 0, prevBass = 0;
+    let isPlaying = false, isDemoBeat = false, demoInterval = null;
+    let audioStartTime = 0, audioPausedTime = 0, audioDuration = 0;
+
+    // VJ CONTROLS
+    let currentSceneIdx = 0;
+    let t3Objs = [];
+    let audioSens = 1.8, camSpeed = 1.0, autoInterval = 8;
+    let autoSeq = false, autoRot = true, autoSeqTimer = null;
+    let camT = 0, strobeActive = false;
+
+    // SYNTHWAVE GRID & FLOOR STATE
+    let meshOn = true;
+    let currentGridType = 0; // 0: Synthwave Grid, 1: Cyberpunk, 2: Cuántico, 3: Matrix
+    let gridCustomColor = '#ff00ff';
+    let gridHorizon = 0.60;
+    let gridOffset = 0;
+    let gridSpeedSens = 1.0;
+
+    // 2D EQUALIZERS STUDIO STATE
+    let eqOn = true;
+    let currentEqType = 0; // 0: Espejo Segmentado, 1: Eclipse 360°, 2: Circular Radial, 3: Cyber Pulse Blocks, 4: Neon Spectrum Lines
+    let eqCustomColor = '#00ffff';
+    let eqScale = 1.0;
+    let eqCenterYPercent = 0.38;
+    const smoothedHeights = new Float32Array(64);
+    let timeData = new Uint8Array(128);
+
+    // Audio input states
+    let isMicActive = false;
+    let micStream = null, micStreamSource = null;
+    let synthDemoBuffer = null;
+    let isSynthDemo = false;
+
+    // ECLIPSE EQUALIZER STATE (for Style 1)
+    let eclipseOn = true, eclipseBgOn = true;
+    let flashSens = 0.65, shakeIntens = 14, eclipseSize = 1.0;
+    let ringR = CANVAS_H * 0.175, ringVel = 0;
+    const RING_BASE = CANVAS_H * 0.175;
+    let gradAngle = 0, flashAlpha = 0, kickCooldown = 0;
+
+    // Orbital particles for Eclipse overlay
+    const OP_COUNT = 60;
+    const opA = new Float32Array(OP_COUNT);
+    const opR = new Float32Array(OP_COUNT);
+    const opSp = new Float32Array(OP_COUNT);
+    const opSz = new Float32Array(OP_COUNT);
+    const opHue = new Float32Array(OP_COUNT);
+
+    for (let i = 0; i < OP_COUNT; i++) {
+        opA[i] = (i / OP_COUNT) * Math.PI * 2;
+        opR[i] = RING_BASE * 1.2 + Math.random() * 70;
+        opSp[i] = 0.006 + Math.random() * 0.012;
+        opSz[i] = 2.5 + Math.random() * 4.0;
+        opHue[i] = Math.random();
+    }
+
+    // Media 2D Overlay
+    let mediaImage = null;
+
+    // Recording Export
+    let mediaRecorder = null, recordedChunks = [], isRecording = false;
+
+    // UI Toast Message modal helpers
+    function showMessage(title, text) {
+        const titleEl = document.getElementById('msgTitle');
+        const textEl = document.getElementById('msgText');
+        const box = document.getElementById('messageBox');
+        if (titleEl && textEl && box) {
+            titleEl.innerText = title;
+            textEl.innerText = text;
+            box.classList.remove('hidden');
+        }
+    }
+
+    function closeMessage() {
+        const box = document.getElementById('messageBox');
+        if (box) box.classList.add('hidden');
+    }
+
+    // INITIALIZATION ON LOAD
+    window.onload = function() {
+        initMasterCanvas();
+        initThreeEngine();
+        initAudioEngine();
+        renderCatalogUI('all');
+        loadScene(0);
+        
+        // Start animation loop
+        requestAnimationFrame(gameLoop);
+    };
+
+    function initMasterCanvas() {
+        masterCanvas = document.getElementById('masterCanvas');
+        masterCanvas.width = CANVAS_W;
+        masterCanvas.height = CANVAS_H;
+        masterCtx = masterCanvas.getContext('2d', { alpha: false });
+
+        // Hidden 3D Offscreen Canvas for Three.js
+        threeCanvas = document.createElement('canvas');
+        threeCanvas.width = CANVAS_W;
+        threeCanvas.height = CANVAS_H;
+    }
+
+    function initThreeEngine() {
+        renderer = new THREE.WebGLRenderer({
+            canvas: threeCanvas,
+            antialias: true,
+            alpha: true,
+            preserveDrawingBuffer: true
+        });
+        renderer.setPixelRatio(1);
+        renderer.setSize(CANVAS_W, CANVAS_H, false);
+
+        camera = new THREE.PerspectiveCamera(55, CANVAS_W / CANVAS_H, 0.1, 600);
+        tScene = new THREE.Scene();
+    }
+
+    function initAudioEngine() {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioCtx();
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.75;
+        freqData = new Uint8Array(analyser.frequencyBinCount);
+        timeData = new Uint8Array(128);
+
+        audioDestination = audioCtx.createMediaStreamDestination();
+        analyser.connect(audioCtx.destination);
+        analyser.connect(audioDestination);
+    }
+
+    // SYNTHWAVE AUDIO SYNTHESIZER (125 BPM)
+    function createDemoSynthBuffer() {
+        if (!audioCtx) return null;
+        const sampleRate = audioCtx.sampleRate || 44100;
+        const duration = 6.0;
+        const buffer = audioCtx.createBuffer(2, sampleRate * duration, sampleRate);
+        const left = buffer.getChannelData(0);
+        const right = buffer.getChannelData(1);
+
+        const notes = [110, 130.81, 164.81, 196, 220, 261.63, 329.63, 392];
+        const bpm = 125;
+        const beatInterval = (60 / bpm) * sampleRate;
+
+        for (let i = 0; i < buffer.length; i++) {
+            let t = i / sampleRate;
+            let beat = Math.floor(i / (beatInterval / 2));
+            let freq = notes[beat % notes.length];
+            
+            let bassEnv = Math.exp(-((i % beatInterval) / (sampleRate * 0.25)));
+            let bassS = Math.sin(2 * Math.PI * 55 * t) * bassEnv * 0.75;
+
+            let leadEnv = Math.exp(-((i % (beatInterval / 2)) / (sampleRate * 0.15)));
+            let lead = (Math.sin(2 * Math.PI * freq * t) + 0.5 * Math.sin(2 * Math.PI * freq * 2 * t)) * leadEnv * 0.35;
+
+            let kick = 0;
+            let kickPos = i % beatInterval;
+            if (kickPos < sampleRate * 0.12) {
+                let kEnv = 1 - (kickPos / (sampleRate * 0.12));
+                let kFreq = 160 * Math.exp(-kickPos / (sampleRate * 0.035)) + 45;
+                kick = Math.sin(2 * Math.PI * kFreq * t) * kEnv * 0.85;
+            }
+
+            let sample = (bassS + lead + kick);
+            left[i] = sample;
+            right[i] = sample;
+        }
+        return buffer;
+    }
+
+    function toggleDemoSynth() {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        if (isSynthDemo && isPlaying) {
+            stopDemoSynth();
+            return;
+        }
+
+        if (isDemoBeat) stopDemoBeat();
+        if (isMicActive) toggleMicrophone();
+        if (audioSourceNode) {
+            try { audioSourceNode.stop(); } catch(e) {}
+        }
+
+        if (!synthDemoBuffer) {
+            synthDemoBuffer = createDemoSynthBuffer();
+        }
+
+        audioBuf = synthDemoBuffer;
+        isSynthDemo = true;
+        isDemoBeat = false;
+        playAudioBuffer(0);
+
+        document.getElementById('aFileName').innerText = "Synthwave 125 BPM";
+        document.getElementById('audioStatus').innerText = "Demo Synth";
+        const btnD = document.getElementById('demoSynthBtn');
+        if (btnD) btnD.classList.add('active-pk', 'bg-pink-500/30', 'text-pink-300');
+        const qp = document.getElementById('quickPlayText');
+        if (qp) qp.innerText = "Pausar";
+    }
+
+    function stopDemoSynth() {
+        isSynthDemo = false;
+        isPlaying = false;
+        if (audioSourceNode) {
+            try { audioSourceNode.stop(); } catch(e) {}
+        }
+        document.getElementById('audioStatus').innerText = "Pausado";
+        document.getElementById('playBtn').innerHTML = `<i class="fa-solid fa-play"></i>`;
+        const btnD = document.getElementById('demoSynthBtn');
+        if (btnD) btnD.classList.remove('active-pk', 'bg-pink-500/30', 'text-pink-300');
+        const qp = document.getElementById('quickPlayText');
+        if (qp) qp.innerText = "Demo Synth";
+    }
+
+    // LIVE MICROPHONE INPUT
+    async function toggleMicrophone() {
+        if (audioCtx.state === 'suspended') await audioCtx.resume();
+        if (isMicActive) {
+            if (micStream) {
+                micStream.getTracks().forEach(t => t.stop());
+                micStream = null;
+            }
+            if (micStreamSource) {
+                try { micStreamSource.disconnect(); } catch(e) {}
+                micStreamSource = null;
+            }
+            isMicActive = false;
+            isPlaying = false;
+            const micBtn = document.getElementById('micBtn');
+            if (micBtn) micBtn.classList.remove('active', 'bg-cyan-500/30', 'text-cyan-300');
+            const qm = document.getElementById('btnQuickMic');
+            if (qm) qm.classList.remove('bg-cyan-600', 'text-white');
+            document.getElementById('audioStatus').innerText = "Mic Apagado";
+            document.getElementById('playBtn').innerHTML = `<i class="fa-solid fa-play"></i>`;
+            return;
+        }
+
+        try {
+            if (audioSourceNode) {
+                try { audioSourceNode.stop(); } catch(e) {}
+            }
+            if (isDemoBeat) stopDemoBeat();
+            if (isSynthDemo) stopDemoSynth();
+
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            micStream = stream;
+            micStreamSource = audioCtx.createMediaStreamSource(stream);
+            micStreamSource.connect(analyser);
+            isMicActive = true;
+            isPlaying = true;
+
+            const micBtn = document.getElementById('micBtn');
+            if (micBtn) micBtn.classList.add('active', 'bg-cyan-500/30', 'text-cyan-300');
+            const qm = document.getElementById('btnQuickMic');
+            if (qm) qm.classList.add('bg-cyan-600', 'text-white');
+            document.getElementById('aFileName').innerText = "Micrófono en Vivo";
+            document.getElementById('audioStatus').innerText = "Mic Activo";
+            document.getElementById('playBtn').innerHTML = `<i class="fa-solid fa-pause"></i>`;
+            showMessage("Micrófono Activado", "Reaccionando al sonido ambiental o voz en tiempo real.");
+        } catch (err) {
+            console.error("Mic error:", err);
+            showMessage("Acceso al Micrófono", "No se pudo acceder al micrófono o el permiso fue denegado en iOS.");
+        }
+    }
+
+    // AUDIO PROCESSING & BEAT GENERATOR
+    function handleAudioUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        currentAudioFile = file;
+
+        if (isDemoBeat) stopDemoBeat();
+        if (isSynthDemo) stopDemoSynth();
+        if (isMicActive) toggleMicrophone();
+
+        document.getElementById('aFileName').innerText = file.name;
+        document.getElementById('audioStatus').innerText = "Cargando...";
+
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            audioCtx.decodeAudioData(
+                evt.target.result,
+                function(decodedBuffer) {
+                    audioBuf = decodedBuffer;
+                    document.getElementById('audioStatus').innerText = "Cargado";
+                    playAudioBuffer(0);
+                    showMessage("Música Cargada", `Reproduciendo ${file.name} con éxito en iOS.`);
+                },
+                function(err) {
+                    console.error("Error decodificando audio", err);
+                    document.getElementById('audioStatus').innerText = "Error formato";
+                    showMessage("Formato de Audio", "No se pudo decodificar el archivo. Asegúrate de que sea un archivo MP3, WAV o M4A compatible.");
+                }
+            );
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    function playAudioBuffer(offset = 0) {
+        if (!audioBuf) return;
+        if (audioSourceNode) {
+            try { audioSourceNode.stop(); } catch(e) {}
+        }
+        
+        audioDuration = audioBuf.duration;
+        document.getElementById('audioTimelineContainer').style.display = 'block';
+        document.getElementById('lblAudioDuration').innerText = formatTime(audioDuration);
+
+        audioSourceNode = audioCtx.createBufferSource();
+        audioSourceNode.buffer = audioBuf;
+        audioSourceNode.loop = true;
+        audioSourceNode.connect(analyser);
+        audioSourceNode.start(0, offset);
+        audioStartTime = audioCtx.currentTime - offset;
+        isPlaying = true;
+
+        document.getElementById('playBtn').innerHTML = `<i class="fa-solid fa-pause"></i>`;
+        document.getElementById('audioStatus').innerText = "Reproduciendo";
+        const qp = document.getElementById('quickPlayText');
+        if (qp) qp.innerText = "Pausar";
+    }
+
+    function togglePlayPause() {
+        if (!audioBuf && !isDemoBeat && !isMicActive && !isSynthDemo) {
+            showMessage('Selecciona una fuente de audio', 'Carga un archivo MP3/M4A, presiona Demo Synth o activa el Micrófono para comenzar.');
+            return;
+        }
+
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        if (isPlaying) {
+            if (audioSourceNode) {
+                try { audioSourceNode.stop(); } catch(e) {}
+            }
+            if (audioBuf && !isDemoBeat && !isSynthDemo) {
+                audioPausedTime = (audioCtx.currentTime - audioStartTime) % audioDuration;
+            }
+            if (isDemoBeat) stopDemoBeat();
+            if (isSynthDemo) stopDemoSynth();
+            if (isMicActive) toggleMicrophone();
+            isPlaying = false;
+            document.getElementById('playBtn').innerHTML = `<i class="fa-solid fa-play"></i>`;
+            document.getElementById('audioStatus').innerText = "Pausado";
+            const qp = document.getElementById('quickPlayText');
+            if (qp) qp.innerText = "Reanudar";
+        } else {
+            if (isDemoBeat) startDemoBeat();
+            else if (audioBuf) playAudioBuffer(audioPausedTime);
+            else if (isSynthDemo) toggleDemoSynth();
+        }
+    }
+
+    function seekAudio(val) {
+        if (!audioBuf) return;
+        const targetTime = (val / 100) * audioDuration;
+        if (isPlaying && !isDemoBeat && !isSynthDemo) {
+            playAudioBuffer(targetTime);
+        } else {
+            audioPausedTime = targetTime;
+            document.getElementById('lblAudioTime').innerText = formatTime(audioPausedTime);
+        }
+    }
+
+    function formatTime(s) {
+        if (isNaN(s) || !s) return '0:00';
+        const min = Math.floor(s / 60);
+        const sec = Math.floor(s % 60);
+        return min + ':' + (sec < 10 ? '0' : '') + sec;
+    }
+
+    function toggleDemoBeat() {
+        if (isDemoBeat) {
+            stopDemoBeat();
+        } else {
+            startDemoBeat();
+        }
+    }
+
+    function startDemoBeat() {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        if (audioSourceNode) { audioSourceNode.stop(); audioBuf = null; }
+        if (isSynthDemo) stopDemoSynth();
+        if (isMicActive) toggleMicrophone();
+
+        isDemoBeat = true;
+        isPlaying = true;
+        document.getElementById('aFileName').innerText = "Demo Beat 128 BPM";
+        document.getElementById('audioStatus').innerText = "Demo Beat";
+        document.getElementById('demoBtn').classList.add('bg-amber-500/30', 'text-amber-300');
+
+        let step = 0;
+        demoInterval = setInterval(() => {
+            if (!isDemoBeat) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(analyser);
+
+            if (step % 4 === 0) { // Deep Kick
+                osc.frequency.setValueAtTime(140, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.16);
+                gain.gain.setValueAtTime(1.0, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.16);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.16);
+            } else if (step % 4 === 2) { // Snare
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(280, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+            }
+            step = (step + 1) % 16;
+        }, 234);
+    }
+
+    function stopDemoBeat() {
+        isDemoBeat = false;
+        isPlaying = false;
+        if (demoInterval) clearInterval(demoInterval);
+        document.getElementById('demoBtn').classList.remove('bg-amber-500/30', 'text-amber-300');
+        document.getElementById('audioStatus').innerText = "Detenido";
+        document.getElementById('playBtn').innerHTML = `<i class="fa-solid fa-play"></i>`;
+    }
+
+    function updateAudioAnalysis() {
+        if (!analyser || !isPlaying) {
+            bass *= 0.9; mid *= 0.9; hi *= 0.9; vol *= 0.9;
+            // Simulated idle waves when idle so visualizers remain dynamic
+            let t = performance.now() * 0.003;
+            for (let i = 0; i < timeData.length; i++) {
+                timeData[i] = 128 + Math.sin(t * 2.5 + i * 0.1) * (bass * 50 + 10);
+            }
+        } else {
+            analyser.getByteFrequencyData(freqData);
+            analyser.getByteTimeDomainData(timeData);
+            const n = freqData.length;
+            let rb = 0, rm = 0, rh = 0;
+            for (let i = 0; i < 4; i++) rb += freqData[i];
+            for (let i = 4; i < 20; i++) rm += freqData[i];
+            for (let i = 20; i < n; i++) rh += freqData[i];
+
+            const sm = 0.25;
+            bass = bass + ((rb / (4 * 255)) * audioSens - bass) * sm;
+            mid = mid + ((rm / (16 * 255)) * audioSens - mid) * sm;
+            hi = hi + ((rh / ((n - 20) * 255)) * audioSens - hi) * sm;
+            vol = bass * 0.5 + mid * 0.3 + hi * 0.2;
+        }
+
+        // Update UI VU Meters
+        const vuB = document.getElementById('vuBass'); if (vuB) vuB.style.height = Math.min(bass * 100, 100) + '%';
+        const vuM = document.getElementById('vuMid'); if (vuM) vuM.style.height = Math.min(mid * 100, 100) + '%';
+        const vuH = document.getElementById('vuHi'); if (vuH) vuH.style.height = Math.min(hi * 100, 100) + '%';
+        const vuV = document.getElementById('vuVol'); if (vuV) vuV.style.height = Math.min(vol * 100, 100) + '%';
+    }
+
+    // CLEAR AND BUILD 3D SCENES
+    function clearScene() {
+        while (tScene.children.length > 0) {
+            const c = tScene.children[0];
+            if (c.geometry) c.geometry.dispose();
+            if (c.material) {
+                if (Array.isArray(c.material)) c.material.forEach(m => m.dispose());
+                else c.material.dispose();
+            }
+            tScene.remove(c);
+        }
+        t3Objs = [];
+    }
+
+    function setupLighting(c1 = 0xff2d78, c2 = 0x00f5ff) {
+        tScene.add(new THREE.AmbientLight(0x222233, 0.7));
+        const p1 = new THREE.PointLight(c1, 3.5, 30); p1.position.set(6, 8, 6); tScene.add(p1);
+        const p2 = new THREE.PointLight(c2, 2.8, 25); p2.position.set(-6, -6, -6); tScene.add(p2);
+        const p3 = new THREE.PointLight(0x39ff14, 1.5, 20); p3.position.set(0, 10, -4); tScene.add(p3);
+    }
+
+    function loadScene(index) {
+        if (index < 0 || index >= CATALOG.length) return;
+        currentSceneIdx = index;
+        clearScene();
+
+        const sc = CATALOG[index];
+        buildUniqueScene3D(index);
+
+        // Update UI Tabs & HUD Tag
+        document.querySelectorAll('.scene-item').forEach(el => el.classList.remove('bg-cyan-500/20', 'border-cyan-500/50', 'text-cyan-300'));
+        const activeItem = document.getElementById(`sc-item-${index}`);
+        if (activeItem) activeItem.classList.add('bg-cyan-500/20', 'border-cyan-500/50', 'text-cyan-300');
+
+        document.getElementById('hudSceneTag').innerText = `${sc.tag} • ${sc.name.toUpperCase()}`;
+        document.getElementById('ambientGlow').style.backgroundColor = sc.color + '22';
+    }
+
+    function buildUniqueScene3D(idx) {
+        const C_PK = 0xff2d78, C_CY = 0x00f5ff, C_GN = 0x39ff14, C_OR = 0xff7700, C_PURP = 0xaa00ff;
+
+        switch (idx) {
+            case 0: // Rejilla Infinita + Pilares
+                tScene.fog = new THREE.FogExp2(0x000000, 0.05);
+                setupLighting(C_CY, C_PK);
+                const floorGeo = new THREE.PlaneGeometry(40, 120, 40, 100);
+                const floorMat = new THREE.MeshBasicMaterial({ color: C_CY, wireframe: true, transparent: true, opacity: 0.55 });
+                const floor = new THREE.Mesh(floorGeo, floorMat);
+                floor.rotation.x = -Math.PI / 2; floor.position.y = -2;
+                tScene.add(floor);
+                for (let i = 0; i < 16; i++) {
+                    const zz = -i * 7;
+                    [-3.5, 3.5].forEach(xx => {
+                        const mat = new THREE.MeshPhongMaterial({ color: i % 2 === 0 ? C_CY : C_PK, emissive: i % 2 === 0 ? C_CY : C_PK, emissiveIntensity: 0.6 });
+                        const pil = new THREE.Mesh(new THREE.BoxGeometry(0.15, 7, 0.15), mat);
+                        pil.position.set(xx, 1, zz); tScene.add(pil);
+                        t3Objs.push({ m: pil, type: 'pilar', zz });
+                    });
+                }
+                t3Objs.push({ m: floor, type: 'gfloor' });
+                camera.position.set(0, 1, 2);
+                break;
+
+            case 1: // Reactor Neón Gyro
+                tScene.fog = new THREE.FogExp2(0x000000, 0.038);
+                setupLighting(C_GN, C_PK);
+                const mkCone = (col, inv) => {
+                    const solid = new THREE.Mesh(new THREE.ConeGeometry(2.8, 5.5, 18, 1, true), new THREE.MeshPhongMaterial({ color: col, emissive: col, emissiveIntensity: 0.3, side: THREE.DoubleSide, transparent: true, opacity: 0.6 }));
+                    const wire = new THREE.Mesh(new THREE.ConeGeometry(2.8, 5.5, 10, 1, true), new THREE.MeshBasicMaterial({ color: col, wireframe: true, transparent: true, opacity: 0.9 }));
+                    if (inv) { solid.rotation.z = Math.PI; wire.rotation.z = Math.PI; }
+                    tScene.add(solid); tScene.add(wire);
+                    return { solid, wire };
+                };
+                const coneA = mkCone(C_GN, false), coneB = mkCone(C_PK, true);
+                [0, 1, 2].forEach(i => {
+                    const ring = new THREE.Mesh(new THREE.TorusGeometry(1.8 + i * 0.4, 0.035, 6, 38), new THREE.MeshBasicMaterial({ color: [C_CY, C_GN, C_PK][i] }));
+                    ring.rotation.x = Math.PI / 2 * (i * 0.4); tScene.add(ring);
+                    t3Objs.push({ m: ring, type: 'oring', i });
+                });
+                t3Objs.push({ ...coneA, type: 'rcone', dir: 1 }, { ...coneB, type: 'rcone', dir: -1 });
+                camera.position.set(0, 2, 8);
+                break;
+
+            case 2: // Tormenta de Partículas Vortex
+                tScene.fog = new THREE.FogExp2(0x000000, 0.028);
+                const N = 2500, pos = new Float32Array(N * 3), col = new Float32Array(N * 3);
+                const pal = [[1, .18, .47], [0, .96, 1], [.22, 1, .08], [1, .42, 0]];
+                for (let i = 0; i < N; i++) {
+                    const a = Math.random() * Math.PI * 2, r = 0.4 + Math.random() * 2.5;
+                    pos[i * 3] = Math.cos(a) * r; pos[i * 3 + 1] = Math.sin(a) * r; pos[i * 3 + 2] = (Math.random() - 0.5) * 44;
+                    const c = pal[i % 4]; col[i * 3] = c[0]; col[i * 3 + 1] = c[1]; col[i * 3 + 2] = c[2];
+                }
+                const pGeo = new THREE.BufferGeometry();
+                pGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+                pGeo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+                const pts = new THREE.Points(pGeo, new THREE.PointsMaterial({ size: 0.08, vertexColors: true, sizeAttenuation: true }));
+                tScene.add(pts);
+                t3Objs.push({ m: pts, geo: pGeo, posArr: pos, type: 'ptunnel' });
+                camera.position.set(0, 0, 5);
+                break;
+
+            case 3: // Túnel Octogonal Torus
+                tScene.fog = new THREE.FogExp2(0x000000, 0.05);
+                tScene.add(new THREE.AmbientLight(0x222222, 1));
+                for (let i = 0; i < 28; i++) {
+                    const col = i % 3 === 0 ? C_PK : i % 3 === 1 ? C_CY : C_GN;
+                    const ring = new THREE.Mesh(new THREE.TorusGeometry(2.4, 0.045, 8, 44), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.85 }));
+                    ring.position.z = -i * 2.4;
+                    const cross = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(4, 4, 0.01)), new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.2 }));
+                    cross.position.z = -i * 2.4;
+                    tScene.add(ring); tScene.add(cross);
+                    t3Objs.push({ m: ring, cross, type: 'tring', z0: -i * 2.4, i });
+                }
+                camera.position.set(0, 0, 4);
+                break;
+
+            case 4: // Hipercubo 4D Tesseract
+                tScene.fog = new THREE.FogExp2(0x000000, 0.03);
+                setupLighting(C_CY, C_PK);
+                const outerCube = new THREE.Mesh(new THREE.BoxGeometry(3.5, 3.5, 3.5), new THREE.MeshBasicMaterial({ color: C_CY, wireframe: true }));
+                const innerCube = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.8, 1.8), new THREE.MeshBasicMaterial({ color: C_PK, wireframe: true }));
+                tScene.add(outerCube); tScene.add(innerCube);
+                t3Objs.push({ m: outerCube, type: 'spinOuter' }, { m: innerCube, type: 'spinInner' });
+                camera.position.set(0, 0, 8);
+                break;
+
+            case 5: // Doble Hélice ADN
+                tScene.fog = new THREE.FogExp2(0x000000, 0.04);
+                setupLighting(C_PK, C_CY);
+                const hGroup = new THREE.Group();
+                [0, 1].forEach(s => {
+                    const curvePts = [];
+                    for (let i = 0; i < 250; i++) {
+                        const tt = (i / 250) * Math.PI * 12;
+                        curvePts.push(new THREE.Vector3(Math.cos(tt + s * Math.PI) * 2.5, (i / 250 - 0.5) * 16, Math.sin(tt + s * Math.PI) * 2.5));
+                    }
+                    const curve = new THREE.CatmullRomCurve3(curvePts);
+                    const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 250, 0.06, 6, false), new THREE.MeshPhongMaterial({ color: s ? C_CY : C_PK, emissive: s ? C_CY : C_PK, emissiveIntensity: 0.3 }));
+                    hGroup.add(tube);
+                    for (let j = 0; j < 20; j++) {
+                        const p = curvePts[Math.floor(j * (250 / 20))];
+                        const sp = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 8), new THREE.MeshPhongMaterial({ color: s ? C_OR : C_GN, emissive: s ? C_OR : C_GN, emissiveIntensity: 0.6 }));
+                        sp.position.copy(p); hGroup.add(sp);
+                    }
+                });
+                tScene.add(hGroup);
+                t3Objs.push({ m: hGroup, type: 'helix' });
+                camera.position.set(5, 0, 5);
+                break;
+
+            case 6: // Synthwave Skyline City
+                tScene.fog = new THREE.FogExp2(0x050010, 0.04);
+                setupLighting(C_PK, C_PURP);
+                const cityGroup = new THREE.Group();
+                for (let x = -6; x <= 6; x += 1.2) {
+                    for (let z = -15; z <= 5; z += 1.2) {
+                        const h = 1 + Math.random() * 4;
+                        const bGeo = new THREE.BoxGeometry(0.9, h, 0.9);
+                        const bMat = new THREE.MeshStandardMaterial({ color: 0x100520, roughness: 0.2, metalness: 0.8, wireframe: false });
+                        const bMesh = new THREE.Mesh(bGeo, bMat);
+                        bMesh.position.set(x, h / 2 - 2, z);
+                        const edges = new THREE.LineSegments(new THREE.EdgesGeometry(bGeo), new THREE.LineBasicMaterial({ color: C_PK }));
+                        bMesh.add(edges);
+                        cityGroup.add(bMesh);
+                    }
+                }
+                tScene.add(cityGroup);
+                t3Objs.push({ m: cityGroup, type: 'city' });
+                camera.position.set(0, 1, 8);
+                break;
+
+            case 7: // Esfera de Cubos Orbitales (PHONK Studio Classic)
+                tScene.fog = new THREE.FogExp2(0x000000, 0.045);
+                setupLighting(C_PK, C_CY);
+                const sphereGroup = new THREE.Group();
+                for (let i = 0; i < 80; i++) {
+                    const col = [C_PK, C_CY, C_GN, C_OR][i % 4];
+                    const mat = new THREE.MeshPhongMaterial({ color: col, emissive: col, emissiveIntensity: 0.35, shininess: 90 });
+                    const cube = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.28, 0.28), mat);
+                    const phi = Math.acos(-1 + (2 * i) / 80), theta = Math.sqrt(80 * Math.PI) * phi;
+                    cube.position.setFromSphericalCoords(3.5, phi, theta);
+                    cube.lookAt(0, 0, 0); cube.userData = { baseR: 3.5 };
+                    sphereGroup.add(cube);
+                }
+                tScene.add(sphereGroup);
+                t3Objs.push({ m: sphereGroup, type: 'sphereCubes' });
+                camera.position.set(0, 0, 8);
+                break;
+
+            case 8: // Matriz Espectro 3D
+                tScene.fog = new THREE.FogExp2(0x000000, 0.04);
+                setupLighting(C_CY, C_PURP);
+                const matrixGroup = new THREE.Group();
+                for (let x = -4; x <= 4; x += 1) {
+                    for (let z = -4; z <= 4; z += 1) {
+                        const bar = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1, 0.4), new THREE.MeshStandardMaterial({ color: C_CY, emissive: C_CY, emissiveIntensity: 0.2 }));
+                        bar.position.set(x * 0.8, 0, z * 0.8);
+                        matrixGroup.add(bar);
+                    }
+                }
+                tScene.add(matrixGroup);
+                t3Objs.push({ m: matrixGroup, type: 'matrix3d' });
+                camera.position.set(0, 3, 8);
+                break;
+
+            case 9: // Anillos de Saturno Gyro
+                tScene.fog = new THREE.FogExp2(0x000000, 0.03);
+                setupLighting(C_OR, C_CY);
+                const planet = new THREE.Mesh(new THREE.SphereGeometry(1.8, 32, 32), new THREE.MeshStandardMaterial({ color: C_OR, roughness: 0.3 }));
+                const satRing = new THREE.Mesh(new THREE.RingGeometry(2.4, 4.2, 48), new THREE.MeshBasicMaterial({ color: C_CY, side: THREE.DoubleSide, wireframe: true }));
+                satRing.rotation.x = Math.PI / 2.5;
+                tScene.add(planet); tScene.add(satRing);
+                t3Objs.push({ m: planet, type: 'planet' }, { m: satRing, type: 'satRing' });
+                camera.position.set(0, 2, 8);
+                break;
+
+            case 10: // Monolito Cyber Runas
+                tScene.fog = new THREE.FogExp2(0x000000, 0.035);
+                setupLighting(C_GN, C_CY);
+                const mono = new THREE.Mesh(new THREE.BoxGeometry(1.5, 5, 0.8), new THREE.MeshStandardMaterial({ color: 0x051510, emissive: C_GN, emissiveIntensity: 0.2, roughness: 0.1 }));
+                const runeRing = new THREE.Mesh(new THREE.TorusGeometry(3, 0.03, 8, 36), new THREE.MeshBasicMaterial({ color: C_CY }));
+                runeRing.rotation.x = Math.PI / 3;
+                tScene.add(mono); tScene.add(runeRing);
+                t3Objs.push({ m: mono, type: 'monolith' }, { m: runeRing, type: 'runeRing' });
+                camera.position.set(0, 0, 7);
+                break;
+
+            case 11: // Caleidoscopio 3D
+                tScene.fog = new THREE.FogExp2(0x000000, 0.03);
+                setupLighting(C_PK, C_GN);
+                const kalGroup = new THREE.Group();
+                for (let i = 0; i < 12; i++) {
+                    const mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(1.2, 0), new THREE.MeshBasicMaterial({ color: [C_PK, C_CY, C_GN][i % 3], wireframe: true }));
+                    mesh.position.set(Math.sin(i) * 2.5, Math.cos(i) * 2.5, 0);
+                    kalGroup.add(mesh);
+                }
+                tScene.add(kalGroup);
+                t3Objs.push({ m: kalGroup, type: 'kaleidoscope' });
+                camera.position.set(0, 0, 8);
+                break;
+
+            case 12: // Agujero de Gusano Wormhole
+                tScene.fog = new THREE.FogExp2(0x000000, 0.04);
+                const wGroup = new THREE.Group();
+                for (let i = 0; i < 30; i++) {
+                    const wRing = new THREE.Mesh(new THREE.TorusGeometry(2 + i * 0.1, 0.03, 8, 30), new THREE.MeshBasicMaterial({ color: C_PURP, wireframe: true }));
+                    wRing.position.z = -i * 1.5;
+                    wGroup.add(wRing);
+                }
+                tScene.add(wGroup);
+                t3Objs.push({ m: wGroup, type: 'wormhole' });
+                camera.position.set(0, 0, 3);
+                break;
+
+            case 13: // Cristales Cuánticos
+                tScene.fog = new THREE.FogExp2(0x000000, 0.035);
+                setupLighting(C_CY, C_PK);
+                const cryGroup = new THREE.Group();
+                for (let i = 0; i < 15; i++) {
+                    const crystal = new THREE.Mesh(new THREE.OctahedronGeometry(0.8 + Math.random() * 0.5), new THREE.MeshStandardMaterial({ color: C_CY, emissive: C_CY, emissiveIntensity: 0.3, roughness: 0.1 }));
+                    crystal.position.set((Math.random() - 0.5) * 6, (Math.random() - 0.5) * 6, (Math.random() - 0.5) * 4);
+                    cryGroup.add(crystal);
+                }
+                tScene.add(cryGroup);
+                t3Objs.push({ m: cryGroup, type: 'crystals' });
+                camera.position.set(0, 0, 7);
+                break;
+
+            case 14: // Lluvia Matrix 3D Cyber
+                tScene.fog = new THREE.FogExp2(0x000000, 0.03);
+                const matPtsCount = 1500, matPos = new Float32Array(matPtsCount * 3);
+                for (let i = 0; i < matPtsCount; i++) {
+                    matPos[i * 3] = (Math.random() - 0.5) * 12;
+                    matPos[i * 3 + 1] = (Math.random() - 0.5) * 16;
+                    matPos[i * 3 + 2] = (Math.random() - 0.5) * 12;
+                }
+                const matGeo = new THREE.BufferGeometry();
+                matGeo.setAttribute('position', new THREE.BufferAttribute(matPos, 3));
+                const matCloud = new THREE.Points(matGeo, new THREE.PointsMaterial({ size: 0.1, color: C_GN }));
+                tScene.add(matCloud);
+                t3Objs.push({ m: matCloud, geo: matGeo, posArr: matPos, type: 'matrixRain' });
+                camera.position.set(0, 0, 8);
+                break;
+
+            case 15: // Galaxia Espiral Estelar
+                tScene.fog = new THREE.FogExp2(0x000000, 0.02);
+                const galCount = 3000, galPos = new Float32Array(galCount * 3);
+                for (let i = 0; i < galCount; i++) {
+                    const r = Math.random() * 6, a = r * 3 + (i % 2) * Math.PI;
+                    galPos[i * 3] = Math.cos(a) * r; galPos[i * 3 + 1] = (Math.random() - 0.5) * 0.5; galPos[i * 3 + 2] = Math.sin(a) * r;
+                }
+                const galGeo = new THREE.BufferGeometry();
+                galGeo.setAttribute('position', new THREE.BufferAttribute(galPos, 3));
+                const galaxy = new THREE.Points(galGeo, new THREE.PointsMaterial({ size: 0.06, color: C_OR }));
+                tScene.add(galaxy);
+                t3Objs.push({ m: galaxy, type: 'galaxy' });
+                camera.position.set(0, 4, 8);
+                break;
+
+            case 16: // Núcleo Solar Plasma
+                tScene.fog = new THREE.FogExp2(0x000000, 0.03);
+                setupLighting(C_OR, C_PK);
+                const sun = new THREE.Mesh(new THREE.IcosahedronGeometry(2.2, 3), new THREE.MeshStandardMaterial({ color: C_OR, emissive: C_OR, emissiveIntensity: 0.6, wireframe: true }));
+                tScene.add(sun);
+                t3Objs.push({ m: sun, type: 'sunCore' });
+                camera.position.set(0, 0, 7);
+                break;
+
+            case 17: // Merkaba Geometría Sagrada
+                tScene.fog = new THREE.FogExp2(0x000000, 0.03);
+                setupLighting(C_CY, C_GN);
+                const tet1 = new THREE.Mesh(new THREE.TetrahedronGeometry(2.5), new THREE.MeshBasicMaterial({ color: C_CY, wireframe: true }));
+                const tet2 = new THREE.Mesh(new THREE.TetrahedronGeometry(2.5), new THREE.MeshBasicMaterial({ color: C_GN, wireframe: true }));
+                tet2.rotation.x = Math.PI;
+                const merkaba = new THREE.Group(); merkaba.add(tet1); merkaba.add(tet2);
+                tScene.add(merkaba);
+                t3Objs.push({ m: merkaba, type: 'merkaba' });
+                camera.position.set(0, 0, 7);
+                break;
+
+            case 18: // Portal Stargate Ring
+                tScene.fog = new THREE.FogExp2(0x000000, 0.035);
+                setupLighting(C_PURP, C_CY);
+                const stargate = new THREE.Mesh(new THREE.TorusGeometry(3.2, 0.2, 16, 48), new THREE.MeshStandardMaterial({ color: 0x220044, emissive: C_PURP, emissiveIntensity: 0.4 }));
+                const horizon = new THREE.Mesh(new THREE.CircleGeometry(3.0, 32), new THREE.MeshBasicMaterial({ color: C_CY, transparent: true, opacity: 0.3, side: THREE.DoubleSide }));
+                tScene.add(stargate); tScene.add(horizon);
+                t3Objs.push({ m: stargate, type: 'stargate' }, { m: horizon, type: 'horizon' });
+                camera.position.set(0, 0, 8);
+                break;
+
+            case 19: // Cubo Rubik Voxel Explode
+                tScene.fog = new THREE.FogExp2(0x000000, 0.035);
+                setupLighting(C_PK, C_CY);
+                const rubikGroup = new THREE.Group();
+                for (let x = -1; x <= 1; x++) {
+                    for (let y = -1; y <= 1; y++) {
+                        for (let z = -1; z <= 1; z++) {
+                            const b = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.8), new THREE.MeshPhongMaterial({ color: C_PK, emissive: C_PK, emissiveIntensity: 0.2 }));
+                            b.position.set(x * 1.1, y * 1.1, z * 1.1);
+                            b.userData = { initPos: b.position.clone() };
+                            rubikGroup.add(b);
+                        }
+                    }
+                }
+                tScene.add(rubikGroup);
+                t3Objs.push({ m: rubikGroup, type: 'rubik' });
+                camera.position.set(0, 0, 7);
+                break;
+
+            case 20: // Coliseo de Espectro 3D
+                tScene.fog = new THREE.FogExp2(0x000000, 0.04);
+                setupLighting(C_CY, C_PK);
+                const colGroup = new THREE.Group();
+                for (let i = 0; i < 32; i++) {
+                    const angle = (i / 32) * Math.PI * 2;
+                    const colBar = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1, 0.3), new THREE.MeshStandardMaterial({ color: C_CY, emissive: C_CY, emissiveIntensity: 0.3 }));
+                    colBar.position.set(Math.cos(angle) * 4, 0, Math.sin(angle) * 4);
+                    colGroup.add(colBar);
+                }
+                tScene.add(colGroup);
+                t3Objs.push({ m: colGroup, type: 'spectrumColosseum' });
+                camera.position.set(0, 2, 9);
+                break;
+
+            case 21: // Montaña Terreno Reactivo
+                tScene.fog = new THREE.Fog(0x000011, 8, 30);
+                setupLighting(C_CY, C_PURP);
+                const mtnGeo = new THREE.PlaneGeometry(24, 24, 32, 32);
+                const mtnMesh = new THREE.Mesh(mtnGeo, new THREE.MeshBasicMaterial({ color: C_CY, wireframe: true }));
+                mtnMesh.rotation.x = -Math.PI / 2.2; mtnMesh.position.y = -2;
+                tScene.add(mtnMesh);
+                t3Objs.push({ m: mtnMesh, geo: mtnGeo, type: 'mountain' });
+                camera.position.set(0, 2, 10);
+                break;
+
+            case 22: // Anillos Concéntricos EQ
+                tScene.fog = new THREE.FogExp2(0x000000, 0.035);
+                const cRingsGroup = new THREE.Group();
+                for (let i = 0; i < 8; i++) {
+                    const cr = new THREE.Mesh(new THREE.TorusGeometry(0.8 + i * 0.5, 0.03, 8, 36), new THREE.MeshBasicMaterial({ color: i % 2 === 0 ? C_PK : C_CY }));
+                    cRingsGroup.add(cr);
+                }
+                tScene.add(cRingsGroup);
+                t3Objs.push({ m: cRingsGroup, type: 'concentricRings' });
+                camera.position.set(0, 0, 7);
+                break;
+
+            case 23: // Vórtice Cyber Audio
+                tScene.fog = new THREE.FogExp2(0x000000, 0.04);
+                setupLighting(C_GN, C_CY);
+                const vortGroup = new THREE.Group();
+                for (let i = 0; i < 24; i++) {
+                    const vBar = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.5, 0.2), new THREE.MeshStandardMaterial({ color: C_GN, emissive: C_GN, emissiveIntensity: 0.3 }));
+                    const a = (i / 24) * Math.PI * 2;
+                    vortGroup.add(vBar);
+                }
+                tScene.add(vortGroup);
+                t3Objs.push({ m: vortGroup, type: 'vortex' });
+                camera.position.set(0, 0, 8);
+                break;
+
+            case 24: // Esfera Picos Deformable
+                tScene.fog = new THREE.FogExp2(0x000000, 0.03);
+                setupLighting(C_OR, C_PK);
+                const spikeGeo = new THREE.SphereGeometry(2.2, 32, 32);
+                const spikeMesh = new THREE.Mesh(spikeGeo, new THREE.MeshStandardMaterial({ color: C_OR, emissive: C_OR, emissiveIntensity: 0.3, wireframe: true }));
+                tScene.add(spikeMesh);
+                t3Objs.push({ m: spikeMesh, geo: spikeGeo, origPos: spikeGeo.attributes.position.clone(), type: 'spikeSphere' });
+                camera.position.set(0, 0, 7);
+                break;
+
+            case 25: // Rascacielos EQ Towers
+                tScene.fog = new THREE.FogExp2(0x000000, 0.04);
+                setupLighting(C_PURP, C_CY);
+                const twrGroup = new THREE.Group();
+                for (let x = -3; x <= 3; x += 1.5) {
+                    const twr = new THREE.Mesh(new THREE.BoxGeometry(0.8, 4, 0.8), new THREE.MeshStandardMaterial({ color: C_PURP, emissive: C_PURP, emissiveIntensity: 0.3 }));
+                    twr.position.set(x, 0, 0);
+                    twrGroup.add(twr);
+                }
+                tScene.add(twrGroup);
+                t3Objs.push({ m: twrGroup, type: 'skylineTowers' });
+                camera.position.set(0, 0, 8);
+                break;
+
+            case 26: // Olas de Luz Ribbon 3D
+                tScene.fog = new THREE.FogExp2(0x000000, 0.035);
+                const ribGeo = new THREE.PlaneGeometry(12, 6, 24, 12);
+                const ribMesh = new THREE.Mesh(ribGeo, new THREE.MeshBasicMaterial({ color: C_CY, wireframe: true, side: THREE.DoubleSide }));
+                tScene.add(ribMesh);
+                t3Objs.push({ m: ribMesh, geo: ribGeo, type: 'ribbon' });
+                camera.position.set(0, 0, 7);
+                break;
+
+            case 27: // Matriz Voxel EQ Cubes
+                tScene.fog = new THREE.FogExp2(0x000000, 0.04);
+                setupLighting(C_OR, C_PK);
+                const voxGroup = new THREE.Group();
+                for (let i = 0; i < 16; i++) {
+                    const vox = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), new THREE.MeshStandardMaterial({ color: C_OR, emissive: C_OR, emissiveIntensity: 0.3 }));
+                    vox.position.set((i % 4 - 1.5) * 1.2, (Math.floor(i / 4) - 1.5) * 1.2, 0);
+                    voxGroup.add(vox);
+                }
+                tScene.add(voxGroup);
+                t3Objs.push({ m: voxGroup, type: 'voxelMatrix' });
+                camera.position.set(0, 0, 7);
+                break;
+
+            case 28: // Flor Quantum Caleidoscopio
+                tScene.fog = new THREE.FogExp2(0x000000, 0.03);
+                const flwGroup = new THREE.Group();
+                for (let i = 0; i < 8; i++) {
+                    const petal = new THREE.Mesh(new THREE.TorusGeometry(1.5, 0.04, 8, 24), new THREE.MeshBasicMaterial({ color: C_PURP }));
+                    petal.rotation.z = (i / 8) * Math.PI * 2;
+                    flwGroup.add(petal);
+                }
+                tScene.add(flwGroup);
+                t3Objs.push({ m: flwGroup, type: 'quantumFlower' });
+                camera.position.set(0, 0, 7);
+                break;
+
+            case 29: // Nube de Frecuencia Particle
+                tScene.fog = new THREE.FogExp2(0x000000, 0.025);
+                const cldCount = 1200, cldPos = new Float32Array(cldCount * 3);
+                for (let i = 0; i < cldCount; i++) {
+                    cldPos[i * 3] = (Math.random() - 0.5) * 8;
+                    cldPos[i * 3 + 1] = (Math.random() - 0.5) * 8;
+                    cldPos[i * 3 + 2] = (Math.random() - 0.5) * 8;
+                }
+                const cldGeo = new THREE.BufferGeometry();
+                cldGeo.setAttribute('position', new THREE.BufferAttribute(cldPos, 3));
+                const cloudPts = new THREE.Points(cldGeo, new THREE.PointsMaterial({ size: 0.1, color: C_CY }));
+                tScene.add(cloudPts);
+                t3Objs.push({ m: cloudPts, type: 'freqCloud' });
+                camera.position.set(0, 0, 7);
+                break;
+
+            case 30: // Pirámide Sierpinski Fractal
+                tScene.fog = new THREE.FogExp2(0x000000, 0.035);
+                setupLighting(C_PK, C_GN);
+                const pyrGroup = new THREE.Group();
+                for (let i = 0; i < 4; i++) {
+                    const pyr = new THREE.Mesh(new THREE.ConeGeometry(1.2, 2, 4), new THREE.MeshStandardMaterial({ color: C_PK, emissive: C_PK, emissiveIntensity: 0.3, wireframe: true }));
+                    pyr.position.set((i % 2 - 0.5) * 1.8, (Math.floor(i / 2) - 0.5) * 1.8, 0);
+                    pyrGroup.add(pyr);
+                }
+                tScene.add(pyrGroup);
+                t3Objs.push({ m: pyrGroup, type: 'sierpinski' });
+                camera.position.set(0, 0, 7);
+                break;
+
+            case 31: // Red Constelación Neural (PHONK Studio Classic)
+                tScene.fog = new THREE.FogExp2(0x000000, 0.028);
+                setupLighting(C_CY, C_GN);
+                const nodes = [], cols = [C_PK, C_CY, C_GN, C_OR];
+                const linePos = new Float32Array(40 * 40 * 6);
+                const lineGeo = new THREE.BufferGeometry();
+                lineGeo.setAttribute('position', new THREE.BufferAttribute(linePos, 3));
+                const lineSeg = new THREE.LineSegments(lineGeo, new THREE.LineBasicMaterial({ color: C_CY, transparent: true, opacity: 0.25 }));
+                tScene.add(lineSeg);
+                for (let i = 0; i < 36; i++) {
+                    const col = cols[i % 4];
+                    const m = new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 8), new THREE.MeshPhongMaterial({ color: col, emissive: col, emissiveIntensity: 0.5 }));
+                    m.position.set((Math.random() - 0.5) * 14, (Math.random() - 0.5) * 18, (Math.random() - 0.5) * 10);
+                    m.userData.v = new THREE.Vector3((Math.random() - 0.5) * 0.02, (Math.random() - 0.5) * 0.02, (Math.random() - 0.5) * 0.005);
+                    tScene.add(m); nodes.push(m);
+                }
+                t3Objs.push({ type: 'network', nodes, lineGeo, linePos, lineSeg });
+                camera.position.set(0, 0, 14);
+                break;
+
+            case 32: // Púlsar Estelar Beam
+                tScene.fog = new THREE.FogExp2(0x000000, 0.03);
+                setupLighting(C_OR, C_CY);
+                const pulsarStar = new THREE.Mesh(new THREE.SphereGeometry(1.5, 24, 24), new THREE.MeshStandardMaterial({ color: C_OR, emissive: C_OR, emissiveIntensity: 0.7 }));
+                const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 12, 16), new THREE.MeshBasicMaterial({ color: C_CY, transparent: true, opacity: 0.6 }));
+                tScene.add(pulsarStar); tScene.add(beam);
+                t3Objs.push({ m: pulsarStar, type: 'pulsar' }, { m: beam, type: 'pulsarBeam' });
+                camera.position.set(0, 0, 8);
+                break;
+
+            case 33: // Torre Espiral Helix EQ
+                tScene.fog = new THREE.FogExp2(0x000000, 0.035);
+                setupLighting(C_CY, C_PURP);
+                const spTwrGroup = new THREE.Group();
+                for (let i = 0; i < 20; i++) {
+                    const a = i * 0.4;
+                    const blk = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.3, 0.6), new THREE.MeshStandardMaterial({ color: C_CY, emissive: C_CY, emissiveIntensity: 0.3 }));
+                    blk.position.set(Math.cos(a) * 2, (i - 10) * 0.4, Math.sin(a) * 2);
+                    spTwrGroup.add(blk);
+                }
+                tScene.add(spTwrGroup);
+                t3Objs.push({ m: spTwrGroup, type: 'spiralTower' });
+                camera.position.set(0, 0, 8);
+                break;
+
+            case 34: // Mar de Ondas Wireframe (PHONK Studio Classic)
+                tScene.fog = new THREE.Fog(0x000011, 10, 35);
+                setupLighting(C_CY, 0x003388);
+                const seaGeo = new THREE.PlaneGeometry(22, 22, 48, 48);
+                const seaMesh = new THREE.Mesh(seaGeo, new THREE.MeshPhongMaterial({ color: 0x003366, emissive: 0x001133, specular: C_CY, shininess: 150, transparent: true, opacity: 0.9, side: THREE.DoubleSide }));
+                seaMesh.rotation.x = -Math.PI / 2; seaMesh.position.y = -1;
+                const seaWire = new THREE.Mesh(new THREE.PlaneGeometry(22, 22, 24, 24), new THREE.MeshBasicMaterial({ color: C_CY, wireframe: true, transparent: true, opacity: 0.35 }));
+                seaWire.rotation.x = -Math.PI / 2; seaWire.position.y = -0.98;
+                tScene.add(seaMesh); tScene.add(seaWire);
+                t3Objs.push({ m: seaMesh, geo: seaGeo, wire: seaWire, type: 'waveSea' });
+                camera.position.set(0, 4, 12);
+                break;
+        }
+    }
+
+    function updateThree3D(elapsed, dt) {
+        if (!tScene || !renderer) return;
+
+        camT += dt * (0.15 + vol * 0.3) * camSpeed;
+
+        t3Objs.forEach(obj => {
+            const { m, type } = obj;
+            switch (type) {
+                case 'gfloor':
+                    m.position.z = ((m.position.z - 0.1 - bass * 0.4) % 14);
+                    m.material.opacity = 0.35 + bass * 0.45;
+                    break;
+                case 'pilar':
+                    m.scale.y = 1 + bass * 2.2;
+                    m.material.emissiveIntensity = 0.25 + bass * 0.9;
+                    m.position.z = ((obj.zz + elapsed * 4 + bass * 2.5) % 112) - 10;
+                    break;
+                case 'rcone':
+                    obj.solid.rotation.y += obj.dir * (0.028 + hi * 0.09);
+                    obj.solid.scale.setScalar(1 + bass * 0.8);
+                    obj.wire.rotation.y = obj.solid.rotation.y;
+                    obj.wire.scale.copy(obj.solid.scale);
+                    break;
+                case 'oring':
+                    m.rotation.x += (obj.i + 1) * 0.019 + hi * 0.07;
+                    m.rotation.y += (obj.i + 1) * 0.013 + mid * 0.04;
+                    m.scale.setScalar(1 + bass * (obj.i + 1) * 0.5);
+                    break;
+                case 'ptunnel':
+                    const pa = obj.posArr;
+                    for (let i = 0; i < pa.length / 3; i++) {
+                        pa[i * 3 + 2] += 0.12 + hi * 0.45 + bass * 0.25;
+                        if (pa[i * 3 + 2] > 22) pa[i * 3 + 2] -= 44;
+                    }
+                    obj.geo.attributes.position.needsUpdate = true;
+                    m.rotation.z += 0.006 + mid * 0.035;
+                    break;
+                case 'tring':
+                    m.rotation.z += 0.016 + hi * 0.09;
+                    const sc = 1 + bass * 0.7; m.scale.setScalar(sc); obj.cross.scale.setScalar(sc);
+                    const nz = ((obj.z0 + elapsed * 4 + bass * 2) % (28 * 2.4)) - 14;
+                    m.position.z = nz; obj.cross.position.z = nz;
+                    break;
+                case 'spinOuter':
+                    m.rotation.x += 0.01; m.rotation.y += 0.015;
+                    m.scale.setScalar(1 + bass * 0.5);
+                    break;
+                case 'spinInner':
+                    m.rotation.x -= 0.02; m.rotation.y -= 0.025;
+                    m.scale.setScalar(1 + mid * 0.7);
+                    break;
+                case 'helix':
+                    m.rotation.y += 0.015 + hi * 0.05;
+                    m.scale.setScalar(1 + bass * 0.35);
+                    break;
+                case 'city':
+                    m.children.forEach((b, i) => {
+                        b.scale.y = 1 + (i % 2 === 0 ? bass : mid) * 1.5;
+                    });
+                    break;
+                case 'sphereCubes':
+                    m.rotation.y += 0.008 + hi * 0.08;
+                    m.children.forEach(c => {
+                        const tgt = c.userData.baseR * (1 + bass * 0.5);
+                        const len = c.position.length();
+                        if (len > 0.001) c.position.multiplyScalar(tgt / len);
+                        c.scale.setScalar(1 + bass * 1.5);
+                    });
+                    break;
+                case 'matrix3d':
+                    m.rotation.y += 0.005;
+                    m.children.forEach((bar, i) => {
+                        bar.scale.y = 0.5 + (i % 3 === 0 ? bass : i % 2 === 0 ? mid : hi) * 4;
+                    });
+                    break;
+                case 'planet':
+                    m.rotation.y += 0.005;
+                    m.scale.setScalar(1 + bass * 0.3);
+                    break;
+                case 'satRing':
+                    m.rotation.z += 0.01 + hi * 0.03;
+                    break;
+                case 'monolith':
+                    m.rotation.y += 0.01;
+                    m.scale.setScalar(1 + bass * 0.2);
+                    break;
+                case 'runeRing':
+                    m.rotation.z += 0.02;
+                    break;
+                case 'kaleidoscope':
+                    m.rotation.z += 0.01;
+                    m.scale.setScalar(1 + mid * 0.5);
+                    break;
+                case 'wormhole':
+                    m.rotation.z += 0.02 + bass * 0.05;
+                    break;
+                case 'crystals':
+                    m.rotation.y += 0.01;
+                    m.children.forEach(c => c.rotation.x += 0.02);
+                    break;
+                case 'matrixRain':
+                    const mp = obj.posArr;
+                    for (let i = 0; i < mp.length / 3; i++) {
+                        mp[i * 3 + 1] -= 0.15 + bass * 0.2;
+                        if (mp[i * 3 + 1] < -8) mp[i * 3 + 1] = 8;
+                    }
+                    obj.geo.attributes.position.needsUpdate = true;
+                    break;
+                case 'galaxy':
+                    m.rotation.y += 0.005 + bass * 0.02;
+                    break;
+                case 'sunCore':
+                    m.rotation.y += 0.01;
+                    m.scale.setScalar(1 + bass * 0.6);
+                    break;
+                case 'merkaba':
+                    m.rotation.x += 0.02; m.rotation.y += 0.02;
+                    m.scale.setScalar(1 + bass * 0.5);
+                    break;
+                case 'stargate':
+                    m.rotation.z += 0.01;
+                    break;
+                case 'horizon':
+                    m.material.opacity = 0.2 + bass * 0.6;
+                    break;
+                case 'rubik':
+                    m.rotation.y += 0.01;
+                    m.children.forEach(b => {
+                        const dist = 1 + bass * 1.8;
+                        b.position.copy(b.userData.initPos).multiplyScalar(dist);
+                    });
+                    break;
+                case 'spectrumColosseum':
+                    m.rotation.y += 0.005;
+                    m.children.forEach((bar, i) => {
+                        bar.scale.y = 0.5 + (i % 3 === 0 ? bass : i % 2 === 0 ? mid : hi) * 5;
+                    });
+                    break;
+
+                case 'mountain':
+                    const pos = obj.geo.attributes.position;
+                    for (let i = 0; i < pos.count; i++) {
+                        const x = pos.getX(i), y = pos.getY(i);
+                        pos.setZ(i, Math.sin(x * 0.8 + elapsed * 2 + bass * 5) * (1.2 + bass * 2.5));
+                    }
+                    pos.needsUpdate = true;
+                    break;
+
+                case 'concentricRings':
+                    m.children.forEach((ring, i) => {
+                        ring.rotation.z += 0.01 * (i + 1);
+                        ring.scale.setScalar(1 + (i % 2 === 0 ? bass : mid) * 0.6);
+                    });
+                    break;
+
+                case 'vortex':
+                    m.rotation.y += 0.02;
+                    m.children.forEach((vBar, i) => {
+                        const a = (i / 24) * Math.PI * 2;
+                        const r = 2.5 + bass * 1.5;
+                        vBar.position.set(Math.cos(a + elapsed) * r, (i - 12) * 0.2, Math.sin(a + elapsed) * r);
+                    });
+                    break;
+
+                case 'spikeSphere':
+                    const pAttr = obj.geo.attributes.position;
+                    const oAttr = obj.origPos;
+                    for (let i = 0; i < pAttr.count; i++) {
+                        const ox = oAttr.getX(i), oy = oAttr.getY(i), oz = oAttr.getZ(i);
+                        const factor = 1 + Math.sin(i + elapsed * 5) * bass * 0.4;
+                        pAttr.setXYZ(i, ox * factor, oy * factor, oz * factor);
+                    }
+                    pAttr.needsUpdate = true;
+                    break;
+
+                case 'skylineTowers':
+                    m.children.forEach((twr, i) => {
+                        twr.scale.y = 1 + (i % 2 === 0 ? bass : mid) * 2;
+                    });
+                    break;
+
+                case 'ribbon':
+                    const rPos = obj.geo.attributes.position;
+                    for (let i = 0; i < rPos.count; i++) {
+                        const x = rPos.getX(i);
+                        rPos.setZ(i, Math.sin(x * 0.8 + elapsed * 3) * (0.8 + hi * 2));
+                    }
+                    rPos.needsUpdate = true;
+                    break;
+
+                case 'voxelMatrix':
+                    m.rotation.y += 0.01;
+                    m.children.forEach((vox, i) => {
+                        vox.scale.setScalar(0.8 + (i % 2 === 0 ? bass : mid) * 1.2);
+                    });
+                    break;
+
+                case 'quantumFlower':
+                    m.rotation.z += 0.01;
+                    m.scale.setScalar(1 + mid * 0.8);
+                    break;
+
+                case 'freqCloud':
+                    m.rotation.y += 0.005;
+                    m.scale.setScalar(1 + vol * 1.2);
+                    break;
+
+                case 'sierpinski':
+                    m.rotation.y += 0.015;
+                    m.scale.setScalar(1 + bass * 0.6);
+                    break;
+
+                case 'network':
+                    const { nodes, lineGeo, linePos, lineSeg } = obj;
+                    let li = 0;
+                    nodes.forEach((n, i) => {
+                        n.position.addScaledVector(n.userData.v, 1);
+                        if (Math.abs(n.position.x) > 7) n.userData.v.x *= -1;
+                        if (Math.abs(n.position.y) > 9) n.userData.v.y *= -1;
+                        if (Math.abs(n.position.z) > 5) n.userData.v.z *= -1;
+                        n.scale.setScalar(1 + bass * 4.5);
+                        nodes.forEach((n2, j) => {
+                            if (j <= i) return;
+                            if (n.position.distanceTo(n2.position) < 6.5) {
+                                linePos[li++] = n.position.x; linePos[li++] = n.position.y; linePos[li++] = n.position.z;
+                                linePos[li++] = n2.position.x; linePos[li++] = n2.position.y; linePos[li++] = n2.position.z;
+                            }
+                        });
+                    });
+                    lineGeo.attributes.position.needsUpdate = true;
+                    lineGeo.setDrawRange(0, li / 3);
+                    break;
+
+                case 'pulsar':
+                    m.scale.setScalar(1 + bass * 0.8);
+                    break;
+
+                case 'pulsarBeam':
+                    m.rotation.z += 0.05;
+                    break;
+
+                case 'spiralTower':
+                    m.rotation.y += 0.01;
+                    m.children.forEach((blk, i) => {
+                        blk.scale.x = 1 + (i % 3 === 0 ? bass : mid) * 1.5;
+                    });
+                    break;
+
+                case 'waveSea':
+                    const sPos = obj.geo.attributes.position;
+                    for (let i = 0; i < sPos.count; i++) {
+                        const x = sPos.getX(i), y = sPos.getY(i);
+                        sPos.setZ(i, Math.sin(x * 0.9 + elapsed * 2.8 + bass * 6) * (1.2 + bass * 2.8) + Math.cos(y * 0.75 + elapsed * 2) * 0.5);
+                    }
+                    sPos.needsUpdate = true; obj.geo.computeVertexNormals();
+                    obj.wire.position.y = -0.98 + bass * 0.4;
+                    break;
+            }
+        });
+
+        // Dynamic Camera Orbit Navigation
+        if (autoRot) {
+            camera.position.x = Math.sin(camT * 0.3) * 7;
+            camera.position.z = Math.cos(camT * 0.3) * 7;
+            camera.position.y = Math.sin(camT * 0.15) * 3;
+            camera.lookAt(0, 0, 0);
+        }
+
+        renderer.render(tScene, camera);
+    }
+
+    function drawEclipseEQ(ctx, dt) {
+        if (!eclipseOn) return;
+
+        const cx = CANVAS_W / 2;
+        const cy = CANVAS_H / 2;
+        
+        const currentBaseR = RING_BASE * eclipseSize;
+
+        kickCooldown -= dt;
+        const kick = bass > flashSens && prevBass < flashSens * 0.8 && kickCooldown < 0;
+        if (kick) kickCooldown = 0.07;
+
+        ringVel += (kick ? currentBaseR * 1.4 : currentBaseR - ringR) * 0.22;
+        ringVel *= 0.65;
+        ringR += ringVel;
+        const rr = Math.max(CANVAS_W * 0.12 * eclipseSize, Math.min(ringR, currentBaseR * 1.5));
+
+        // Aura Background & Radial Rays
+        if (eclipseBgOn) {
+            ctx.save();
+            ctx.fillStyle = 'rgba(0, 4, 10, 0.35)';
+            ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+            // Radial lines
+            ctx.globalAlpha = 0.08; ctx.strokeStyle = '#00f5ff'; ctx.lineWidth = 0.8;
+            for (let i = 0; i < 18; i++) {
+                const a = (i / 18) * Math.PI * 2;
+                ctx.beginPath(); ctx.moveTo(cx, cy);
+                ctx.lineTo(cx + Math.cos(a) * CANVAS_W, cy + Math.sin(a) * CANVAS_H); ctx.stroke();
+            }
+            ctx.restore();
+
+            // Expanding outward rings
+            ctx.save();
+            const rt = (performance.now() / 700) % 1;
+            for (let r = 0; r < 5; r++) {
+                const rad = rr + 30 + ((r / 5 + rt + bass * 0.3) % 1) * (CANVAS_H * 0.45);
+                ctx.beginPath(); ctx.arc(cx, cy, rad, 0, Math.PI * 2);
+                ctx.strokeStyle = `hsl(${185 + r * 22}, 100%, 58%)`; ctx.lineWidth = 0.9;
+                ctx.globalAlpha = 0.18; ctx.stroke();
+            }
+            ctx.restore();
+
+            // Orbital Particles
+            ctx.save();
+            for (let i = 0; i < OP_COUNT; i++) {
+                opA[i] += opSp[i] * (1 + hi * 5 + mid * 2);
+                ctx.beginPath();
+                ctx.arc(cx + Math.cos(opA[i]) * (opR[i] * eclipseSize), cy + Math.sin(opA[i]) * (opR[i] * eclipseSize), opSz[i] * (1 + hi * 3) * eclipseSize, 0, Math.PI * 2);
+                ctx.fillStyle = `hsla(${opHue[i] * 360}, 100%, 70%, 0.85)`; ctx.fill();
+            }
+            ctx.restore();
+
+            if (kick) flashAlpha = 0.45;
+            flashAlpha *= 0.7;
+            if (flashAlpha > 0.01) {
+                ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha.toFixed(3)})`;
+                ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+            }
+        }
+
+        // Camera Shake Effect
+        let sx = 0, sy = 0;
+        if (bass > 0.75) {
+            const mag = (bass - 0.75) * shakeIntens * 3;
+            sx = (Math.random() - 0.5) * mag;
+            sy = (Math.random() - 0.5) * mag;
+        }
+
+        ctx.save();
+        if (sx || sy) ctx.translate(sx, sy);
+
+        gradAngle += 0.01 + vol * 0.05;
+        const g = ctx.createLinearGradient(
+            cx + Math.cos(gradAngle) * rr * 2, cy + Math.sin(gradAngle) * rr * 2,
+            cx - Math.cos(gradAngle) * rr * 2, cy - Math.sin(gradAngle) * rr * 2
+        );
+        g.addColorStop(0, '#ff2d78'); g.addColorStop(0.35, '#00f5ff');
+        g.addColorStop(0.7, '#39ff14'); g.addColorStop(1, '#ff2d78');
+
+        const N = analyser ? freqData.length / 2 : 64;
+
+        // Outer Spectrum Bars (Glow pass)
+        ctx.save(); ctx.shadowBlur = 16; ctx.shadowColor = '#00f5ff';
+        ctx.lineWidth = 3.5; ctx.globalAlpha = 0.35; ctx.strokeStyle = g;
+        ctx.beginPath();
+        for (let i = 0; i < N; i++) {
+            const raw = analyser ? freqData[i] / 255 : 0;
+            const len = Math.pow(raw * 2.2, 2.0) * (CANVAS_H * 0.28);
+            if (len < 2) continue;
+            const a = (i / N) * Math.PI * 2 - Math.PI / 2;
+            ctx.moveTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr);
+            ctx.lineTo(cx + Math.cos(a) * (rr + len), cy + Math.sin(a) * (rr + len));
+        }
+        ctx.stroke(); ctx.restore();
+
+        // Inner Sharp Spectrum Lines
+        ctx.save(); ctx.lineWidth = 1.2; ctx.globalAlpha = 1.0; ctx.strokeStyle = '#ffffff';
+        ctx.beginPath();
+        for (let i = 0; i < N; i++) {
+            const raw = analyser ? freqData[i] / 255 : 0;
+            const len = Math.pow(raw * 2.2, 2.0) * (CANVAS_H * 0.28);
+            if (len < 2) continue;
+            const a = (i / N) * Math.PI * 2 - Math.PI / 2;
+            ctx.moveTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr);
+            ctx.lineTo(cx + Math.cos(a) * (rr + len), cy + Math.sin(a) * (rr + len));
+        }
+        ctx.stroke(); ctx.restore();
+
+        // Main Ring Border
+        ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, rr, 0, Math.PI * 2);
+        ctx.strokeStyle = g; ctx.lineWidth = 3; ctx.shadowBlur = 12; ctx.shadowColor = '#ff2d78'; ctx.stroke(); ctx.restore();
+
+        // Dark Central Core Hole
+        const ir = rr * 0.52;
+        ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, ir, 0, Math.PI * 2);
+        const ig = ctx.createRadialGradient(cx, cy, 0, cx, cy, ir);
+        ig.addColorStop(0, '#000000'); ig.addColorStop(0.8, '#050a12'); ig.addColorStop(1, '#000000');
+        ctx.fillStyle = ig; ctx.fill(); ctx.restore();
+
+        // Center HUD React Indicators
+        const dY = cy + rr + CANVAS_H * 0.05;
+        [{ x: cx - CANVAS_W * 0.12, v: bass, c: '#ff2d78', l: 'BASS' },
+         { x: cx, v: mid, c: '#00f5ff', l: 'MID' },
+         { x: cx + CANVAS_W * 0.12, v: hi, c: '#39ff14', l: 'HIGH' }].forEach(bar => {
+            ctx.save();
+            ctx.fillStyle = 'rgba(10, 16, 24, 0.7)';
+            ctx.fillRect(bar.x - 14, dY, 28, 4);
+            ctx.fillStyle = bar.c;
+            ctx.fillRect(bar.x - 14, dY, Math.min(bar.v * 28, 28), 4);
+            ctx.font = "8px 'Orbitron', monospace"; ctx.textAlign = 'center'; ctx.fillText(bar.l, bar.x, dY + 12);
+            ctx.restore();
+        });
+
+        ctx.restore(); // Restore shake
+    }
+
+    // ==========================================
+    // SYNTHWAVE MESH / GRID RENDER ENGINE (4 TYPES)
+    // ==========================================
+    function drawSynthwaveMesh(ctx, dt) {
+        if (!meshOn) return;
+
+        const width = CANVAS_W;
+        const height = CANVAS_H;
+        const horizonY = height * gridHorizon;
+
+        const speedMultiplier = (1.2 + Math.pow(bass, 1.8) * 14.0 * gridSpeedSens) * (dt * 60);
+        gridOffset = (gridOffset + speedMultiplier) % 40;
+
+        ctx.save();
+        if (currentGridType === 0) {
+            // 1. Synthwave Grid Original (Perspectiva Clásica & Rejilla Radiales)
+            let gridGradient = ctx.createLinearGradient(0, horizonY, 0, height);
+            gridGradient.addColorStop(0, gridCustomColor);
+            gridGradient.addColorStop(1, '#00ffff');
+            ctx.strokeStyle = gridGradient;
+            ctx.lineWidth = 3.0;
+
+            for (let y = horizonY; y < height; y += (y - horizonY) * 0.09 + 6.0) {
+                let adjustedY = y + gridOffset * 0.5;
+                if (adjustedY > horizonY && adjustedY < height) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, adjustedY);
+                    ctx.lineTo(width, adjustedY);
+                    ctx.stroke();
+                }
+            }
+
+            let centerX = width / 2;
+            for (let i = -18; i <= 18; i++) {
+                let bottomX = centerX + i * (width / 5);
+                ctx.beginPath();
+                ctx.moveTo(centerX, horizonY);
+                ctx.lineTo(bottomX, height);
+                ctx.stroke();
+            }
+        } else if (currentGridType === 1) {
+            // 2. Cyberpunk Grid Futurista (Líneas cruzadas con pulso eléctrico)
+            ctx.strokeStyle = gridCustomColor;
+            ctx.lineWidth = 3.0;
+            let step = 70;
+            let offsetZ = gridOffset * 1.6;
+
+            for (let y = horizonY; y < height; y += 36) {
+                let py = y + (offsetZ % 36);
+                ctx.globalAlpha = Math.min(1, Math.max(0, (py - horizonY) / (height - horizonY)));
+                ctx.beginPath();
+                ctx.moveTo(0, py);
+                ctx.lineTo(width, py);
+                ctx.stroke();
+            }
+
+            ctx.globalAlpha = 0.65;
+            for (let x = 0; x < width; x += step) {
+                ctx.beginPath();
+                ctx.moveTo(x, horizonY);
+                ctx.lineTo(x + (x - width / 2) * 0.8, height);
+                ctx.stroke();
+            }
+        } else if (currentGridType === 2) {
+            // 3. Starfield Tunnel Cuántico (Anillos concéntricos hacia el fondo)
+            let centerX = width / 2;
+            let centerY = horizonY;
+            let numRings = 14;
+            let maxRadius = width * 0.85;
+            let ringOffset = (gridOffset * 4) % (maxRadius / numRings);
+
+            for (let i = 0; i < numRings; i++) {
+                let r = i * (maxRadius / numRings) + ringOffset + bass * 60;
+                if (r > 15 && r < maxRadius) {
+                    ctx.strokeStyle = gridCustomColor;
+                    ctx.lineWidth = 2.0 + (i / numRings) * 3.5;
+                    ctx.globalAlpha = Math.min(1, r / maxRadius);
+                    ctx.beginPath();
+                    ctx.ellipse(centerX, centerY, r, r * 0.45, 0, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            }
+        } else if (currentGridType === 3) {
+            // 4. Matrix Digital Waves (Ondas sinusoidales de suelo digital)
+            ctx.strokeStyle = gridCustomColor;
+            ctx.lineWidth = 3.5;
+            let numWaves = 10;
+
+            for (let w = 0; w < numWaves; w++) {
+                let startY = horizonY + w * ((height - horizonY) / numWaves);
+                ctx.beginPath();
+                for (let x = 0; x <= width; x += 20) {
+                    let y = startY + Math.sin(x * 0.01 + gridOffset * 0.1 + w) * (18 + bass * 45);
+                    if (x === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.globalAlpha = 0.3 + (w / numWaves) * 0.7;
+                ctx.stroke();
+            }
+        }
+        ctx.restore();
+    }
+
+    // ==========================================
+    // 2D EQUALIZERS STUDIO (5 STYLES)
+    // ==========================================
+    function drawSelectedEqualizer(ctx, dt) {
+        if (!eqOn) return;
+
+        switch (currentEqType) {
+            case 0:
+                drawSegmentedMirrorEQ(ctx, dt);
+                break;
+            case 1:
+                drawEclipseEQ(ctx, dt);
+                break;
+            case 2:
+                drawCircularRadialEQ(ctx, dt);
+                break;
+            case 3:
+                drawCyberPulseBlocksEQ(ctx, dt);
+                break;
+            case 4:
+                drawNeonSpectrumLinesEQ(ctx, dt);
+                break;
+        }
+    }
+
+    // Style 0: Espejo Segmentado (Synthwave Rainbow + Onda Seno Blanca en el centro)
+    function drawSegmentedMirrorEQ(ctx, dt) {
+        const width = CANVAS_W;
+        const height = CANVAS_H;
+        let eqCenterX = width / 2;
+        let eqCenterY = height * eqCenterYPercent;
+        let scalePulse = (1 + bass * 0.22) * eqScale;
+
+        ctx.save();
+        ctx.translate(eqCenterX, eqCenterY);
+        ctx.scale(scalePulse, scalePulse);
+        ctx.translate(-eqCenterX, -eqCenterY);
+
+        let halfBars = 16;
+        let barWidth = Math.max(10, width * 0.017);
+        let barGap = barWidth * 0.55;
+
+        const rainbowColors = [
+            '#ef4444', '#f97316', '#facc15', '#4ade80', 
+            '#06b6d4', '#3b82f6', '#a855f7', '#ec4899'
+        ];
+
+        for (let i = 0; i < halfBars; i++) {
+            let dataIndex = Math.floor((i / halfBars) * (freqData.length / 2.0));
+            let rawVal = freqData[dataIndex] || (bass * 200 + 15);
+            let targetHeight = Math.pow(rawVal / 255, 1.35) * (height * 0.16);
+
+            if (targetHeight > smoothedHeights[i]) smoothedHeights[i] = targetHeight;
+            else smoothedHeights[i] += (targetHeight - smoothedHeights[i]) * 0.45;
+
+            let barHeight = smoothedHeights[i];
+            let leftX = eqCenterX - ((i + 1) * (barWidth + barGap));
+            let rightX = eqCenterX + (i * (barWidth + barGap));
+
+            let colorIndex = Math.floor((i / halfBars) * rainbowColors.length);
+            let barColor = rainbowColors[colorIndex % rainbowColors.length];
+
+            ctx.fillStyle = barColor;
+            ctx.shadowColor = barColor;
+            ctx.shadowBlur = 14;
+
+            let segmentHeight = 7.0;
+            let segmentGap = 4.0;
+            let numSegments = Math.floor(barHeight / (segmentHeight + segmentGap));
+
+            for (let s = 0; s < numSegments; s++) {
+                let segYOffset = s * (segmentHeight + segmentGap);
+                ctx.fillRect(leftX, eqCenterY - segYOffset - segmentHeight, barWidth, segmentHeight);
+                ctx.fillRect(leftX, eqCenterY + segYOffset, barWidth, segmentHeight);
+                ctx.fillRect(rightX, eqCenterY - segYOffset - segmentHeight, barWidth, segmentHeight);
+                ctx.fillRect(rightX, eqCenterY + segYOffset, barWidth, segmentHeight);
+            }
+
+            if (numSegments > 0) {
+                ctx.fillStyle = '#ffffff';
+                ctx.shadowColor = '#ffffff';
+                ctx.shadowBlur = 10;
+                let peakOffset = numSegments * (segmentHeight + segmentGap);
+                ctx.fillRect(leftX, eqCenterY - peakOffset - 3.0, barWidth, 3.0);
+                ctx.fillRect(leftX, eqCenterY + peakOffset, barWidth, 3.0);
+                ctx.fillRect(rightX, eqCenterY - peakOffset - 3.0, barWidth, 3.0);
+                ctx.fillRect(rightX, eqCenterY + peakOffset, barWidth, 3.0);
+            }
+        }
+
+        // Onda Sinusoidal Blanca en el Centro
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 5.0;
+        ctx.shadowColor = '#ffffff';
+        ctx.shadowBlur = 20;
+        ctx.beginPath();
+        let waveWidth = (halfBars * 2) * (barWidth + barGap) * 1.15;
+        let waveStartX = eqCenterX - (waveWidth / 2);
+        let sliceWidth = waveWidth / timeData.length;
+        let currentX = waveStartX;
+
+        for (let i = 0; i < timeData.length; i++) {
+            let v = (timeData[i] || 128) / 128.0;
+            let y = eqCenterY + (v - 1) * (70 + bass * 45);
+            if (i === 0) ctx.moveTo(currentX, y);
+            else ctx.lineTo(currentX, y);
+            currentX += sliceWidth;
+        }
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    // Style 2: Circular Radial Espectral
+    function drawCircularRadialEQ(ctx, dt) {
+        const width = CANVAS_W;
+        const height = CANVAS_H;
+        let eqCenterX = width / 2;
+        let eqCenterY = height * eqCenterYPercent;
+        let radius = (150 + bass * 80) * eqScale;
+        let numBars = 36;
+        let angleStep = (Math.PI * 2) / numBars;
+
+        ctx.save();
+        ctx.translate(eqCenterX, eqCenterY);
+        for (let i = 0; i < numBars; i++) {
+            let dataIndex = Math.floor((i / numBars) * freqData.length);
+            let raw = freqData[dataIndex] || (bass * 200 + 15);
+            let val = (raw / 255) * (180 * eqScale);
+            let angle = i * angleStep;
+
+            let x1 = Math.cos(angle) * radius;
+            let y1 = Math.sin(angle) * radius;
+            let x2 = Math.cos(angle) * (radius + val + 25);
+            let y2 = Math.sin(angle) * (radius + val + 25);
+
+            ctx.strokeStyle = eqCustomColor;
+            ctx.lineWidth = 7 * eqScale;
+            ctx.shadowColor = eqCustomColor;
+            ctx.shadowBlur = 20;
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+        }
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.75, 0, Math.PI * 2);
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 3.5 * eqScale;
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    // Style 3: Cyber Pulse Blocks
+    function drawCyberPulseBlocksEQ(ctx, dt) {
+        const width = CANVAS_W;
+        const height = CANVAS_H;
+        let eqCenterX = width / 2;
+        let eqCenterY = height * eqCenterYPercent;
+        let numBars = 22;
+        let barW = 22 * eqScale;
+        let gap = 14 * eqScale;
+        let totalW = numBars * (barW + gap);
+        let startX = eqCenterX - (totalW / 2);
+
+        ctx.save();
+        for (let i = 0; i < numBars; i++) {
+            let dataIndex = Math.floor((i / numBars) * freqData.length);
+            let raw = freqData[dataIndex] || (bass * 200 + 15);
+            let val = (raw / 255) * (260 * eqScale);
+            let x = startX + i * (barW + gap);
+            let h = Math.max(16, val + bass * 90);
+
+            ctx.fillStyle = eqCustomColor;
+            ctx.shadowColor = eqCustomColor;
+            ctx.shadowBlur = 25;
+            ctx.fillRect(x, eqCenterY - (h / 2), barW, h);
+
+            // Highlight caps
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(x, eqCenterY - (h / 2) - 4, barW, 4);
+            ctx.fillRect(x, eqCenterY + (h / 2), barW, 4);
+        }
+        ctx.restore();
+    }
+
+    // Style 4: Neon Spectrum Lines
+    function drawNeonSpectrumLinesEQ(ctx, dt) {
+        const width = CANVAS_W;
+        const height = CANVAS_H;
+        let eqCenterY = height * eqCenterYPercent;
+
+        ctx.save();
+        ctx.lineWidth = 6.0 * eqScale;
+        ctx.shadowColor = eqCustomColor;
+        ctx.shadowBlur = 25;
+        ctx.strokeStyle = eqCustomColor;
+
+        ctx.beginPath();
+        let sliceW = (width * 0.85) / freqData.length;
+        let startX = width * 0.075;
+
+        for (let i = 0; i < freqData.length; i++) {
+            let raw = freqData[i] || (bass * 180 + 20);
+            let v = (raw / 255) * (180 * eqScale);
+            let x = startX + i * sliceW;
+            let y = eqCenterY - v + Math.sin(i * 0.3 + gridOffset * 0.2) * (25 + bass * 40);
+
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2.5 * eqScale;
+        ctx.beginPath();
+        for (let i = 0; i < freqData.length; i++) {
+            let raw = freqData[i] || (bass * 180 + 20);
+            let v = (raw / 255) * (180 * eqScale);
+            let x = startX + i * sliceW;
+            let y = eqCenterY + v - Math.sin(i * 0.3 + gridOffset * 0.2) * (25 + bass * 40);
+
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    // MASTER GAME RENDER LOOP
+    let lastTime = performance.now();
+    function gameLoop(now) {
+        requestAnimationFrame(gameLoop);
+
+        const dt = Math.min((now - lastTime) / 1000, 0.1);
+        lastTime = now;
+        const elapsed = now / 1000;
+
+        if (isPlaying && audioBuf && !isDemoBeat && !isSynthDemo) {
+            let curr = (audioCtx.currentTime - audioStartTime) % audioDuration;
+            if (curr < 0) curr = 0;
+            document.getElementById('lblAudioTime').innerText = formatTime(curr);
+            document.getElementById('rngAudioTime').value = (curr / audioDuration) * 100;
+        }
+
+        // 1. Process Audio
+        prevBass = bass;
+        updateAudioAnalysis();
+
+        // 2. Render 3D Scene into hidden Three Canvas
+        updateThree3D(elapsed, dt);
+
+        // 3. Composite onto Master Canvas
+        masterCtx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+        masterCtx.drawImage(threeCanvas, 0, 0, CANVAS_W, CANVAS_H);
+
+        // 4. Render Synthwave Mesh Floor
+        if (meshOn) {
+            drawSynthwaveMesh(masterCtx, dt);
+        }
+
+        // 5. Render 2D Equalizer Overlay
+        if (eqOn) {
+            drawSelectedEqualizer(masterCtx, dt);
+        }
+
+        // 6. Draw 2D Media Overlay (Image/Logo)
+        if (mediaImage) {
+            masterCtx.save();
+            masterCtx.globalAlpha = 0.85;
+            const mw = CANVAS_W * 0.4;
+            const mh = (mediaImage.height / mediaImage.width) * mw;
+            masterCtx.drawImage(mediaImage, (CANVAS_W - mw) / 2, CANVAS_H * 0.15, mw, mh);
+            masterCtx.restore();
+        }
+
+        // 7. Draw Manual Strobe Flash Overlay
+        if (strobeActive) {
+            masterCtx.fillStyle = `rgba(255, 255, 255, ${Math.random() > 0.5 ? 0.9 : 0.2})`;
+            masterCtx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+        }
+    }
+
+    // MEDIA 2D OVERLAY UPLOAD
+    function handleMediaUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                mediaImage = img;
+                document.getElementById('mediaStatus').innerText = `Overlay Activo: ${file.name}`;
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+    
+    function clearMediaOverlay() {
+        mediaImage = null;
+        document.getElementById('mediaInput').value = '';
+        document.getElementById('mediaStatus').innerText = 'Sin overlay 2D activo';
+    }
+
+    // UI CONTROLS & EVENT HANDLERS
+    function renderCatalogUI(category = 'all') {
+        const container = document.getElementById('sceneCatalogList');
+        container.innerHTML = '';
+
+        CATALOG.forEach(sc => {
+            if (category !== 'all' && sc.cat !== category) return;
+
+            const btn = document.createElement('div');
+            btn.id = `sc-item-${sc.id}`;
+            btn.onclick = () => loadScene(sc.id);
+            btn.className = `scene-item p-2 rounded border border-slate-800/80 bg-slate-900/40 cursor-pointer flex items-center justify-between text-[10px] transition-all hover:bg-slate-800/60 ${sc.id === currentSceneIdx ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300' : 'text-slate-300'}`;
+
+            btn.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full" style="background-color: ${sc.color}"></span>
+                    <span class="font-bold">${sc.name}</span>
+                </div>
+                <span class="text-[8px] font-mono px-1 py-0.5 rounded bg-black/50 text-slate-400 border border-white/5">${sc.tag}</span>
+            `;
+
+            container.appendChild(btn);
+        });
+    }
+
+    function filterCat(cat) {
+        ['all', 'engine3d', 'eq3d'].forEach(c => {
+            const el = document.getElementById(`catTab-${c}`);
+            if (el) el.className = `px-2 py-1 rounded text-slate-400 hover:text-white`;
+        });
+        document.getElementById(`catTab-${cat}`).className = `px-2 py-1 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold`;
+        renderCatalogUI(cat);
+    }
+
+    // CONTROL SYNC FUNCTIONS FOR MESH & EQUALIZERS
+    function setGridType(val) {
+        val = parseInt(val);
+        if (val === -1) {
+            meshOn = false;
+        } else {
+            meshOn = true;
+            currentGridType = val;
+        }
+        const sel1 = document.getElementById('selGridType');
+        const sel2 = document.getElementById('quickGridSelect');
+        if (sel1 && val >= 0) sel1.value = val;
+        if (sel2) sel2.value = val;
+        const btn = document.getElementById('btnToggleMesh');
+        const lbl = document.getElementById('lblMeshStatus');
+        if (btn) btn.classList.toggle('active-pk', meshOn);
+        if (lbl) lbl.innerText = meshOn ? "ON" : "OFF";
+    }
+
+    function setGridColor(hex) {
+        gridCustomColor = hex;
+        const cp1 = document.getElementById('gridColorPicker');
+        const cp2 = document.getElementById('quickGridColor');
+        if (cp1) cp1.value = hex;
+        if (cp2) cp2.value = hex;
+    }
+
+    function toggleMesh() {
+        meshOn = !meshOn;
+        const btn = document.getElementById('btnToggleMesh');
+        const lbl = document.getElementById('lblMeshStatus');
+        if (btn) btn.classList.toggle('active-pk', meshOn);
+        if (lbl) lbl.innerText = meshOn ? "ON" : "OFF";
+        const sel2 = document.getElementById('quickGridSelect');
+        if (sel2) sel2.value = meshOn ? currentGridType : -1;
+    }
+
+    function setEqStyle(val) {
+        val = parseInt(val);
+        if (val === -1) {
+            eqOn = false;
+        } else {
+            eqOn = true;
+            currentEqType = val;
+        }
+        const sel1 = document.getElementById('selEqStyle');
+        const sel2 = document.getElementById('quickEqSelect');
+        if (sel1 && val >= 0) sel1.value = val;
+        if (sel2) sel2.value = val;
+        const btn = document.getElementById('btnToggleEq');
+        const lbl = document.getElementById('lblEqStatus');
+        if (btn) btn.classList.toggle('active', eqOn);
+        if (lbl) lbl.innerText = eqOn ? "ON" : "OFF";
+
+        // Show Eclipse specific controls if Eclipse is selected
+        const ecControls = document.getElementById('eclipseSpecificControls');
+        if (ecControls) {
+            ecControls.style.display = (currentEqType === 1) ? 'block' : 'none';
+        }
+    }
+
+    function setEqColor(hex) {
+        eqCustomColor = hex;
+        const cp1 = document.getElementById('eqColorPicker');
+        const cp2 = document.getElementById('quickEqColor');
+        if (cp1) cp1.value = hex;
+        if (cp2) cp2.value = hex;
+    }
+
+    function toggleEq() {
+        eqOn = !eqOn;
+        const btn = document.getElementById('btnToggleEq');
+        const lbl = document.getElementById('lblEqStatus');
+        if (btn) btn.classList.toggle('active', eqOn);
+        if (lbl) lbl.innerText = eqOn ? "ON" : "OFF";
+        const sel2 = document.getElementById('quickEqSelect');
+        if (sel2) sel2.value = eqOn ? currentEqType : -1;
+    }
+
+    let quickUiMinimized = false;
+    function toggleQuickUi() {
+        quickUiMinimized = !quickUiMinimized;
+        const controls = document.getElementById('quickScrollControls');
+        const btn = document.getElementById('toggleQuickUiBtn');
+        if (quickUiMinimized) {
+            controls.style.display = 'none';
+            btn.innerText = "Restaurar Controles";
+        } else {
+            controls.style.display = 'flex';
+            btn.innerText = "Minimizar (Pantalla Libre)";
+        }
+    }
+
+    function updateParam(param, val) {
+        val = parseFloat(val);
+        if (param === 'sens') { audioSens = val; document.getElementById('lblSens').innerText = val.toFixed(1) + 'x'; }
+        if (param === 'camSpeed') { camSpeed = val; document.getElementById('lblCamSpeed').innerText = val.toFixed(1) + 'x'; }
+        if (param === 'autoInterval') { autoInterval = val; document.getElementById('lblAutoInterval').innerText = val + 's'; restartAutoSeq(); }
+        if (param === 'gridHorizon') { gridHorizon = val / 100; document.getElementById('lblGridHorizon').innerText = Math.round(val) + '%'; }
+        if (param === 'gridSpeed') { gridSpeedSens = val; document.getElementById('lblGridSpeed').innerText = val.toFixed(1) + 'x'; }
+        if (param === 'eqScale') { eqScale = val; document.getElementById('lblEqScale').innerText = val.toFixed(1) + 'x'; }
+        if (param === 'eqCenterY') { eqCenterYPercent = val / 100; document.getElementById('lblEqCenterY').innerText = Math.round(val) + '%'; }
+        if (param === 'eclipseSize') { eclipseSize = val; }
+        if (param === 'flash') { flashSens = val; document.getElementById('lblFlash').innerText = val.toFixed(2); }
+        if (param === 'shake') { shakeIntens = val; document.getElementById('lblShake').innerText = val; }
+    }
+
+    function toggleSidebar() {
+        const sidebar = document.getElementById('controlSidebar');
+        if (sidebar.classList.contains('-translate-x-full')) {
+            sidebar.classList.remove('-translate-x-full');
+        } else {
+            sidebar.classList.add('-translate-x-full');
+        }
+    }
+
+    function toggleAutoSeq() {
+        autoSeq = !autoSeq;
+        document.getElementById('btnAutoSeq').classList.toggle('active', autoSeq);
+        if (autoSeq) restartAutoSeq();
+        else if (autoSeqTimer) clearInterval(autoSeqTimer);
+    }
+
+    function restartAutoSeq() {
+        if (autoSeqTimer) clearInterval(autoSeqTimer);
+        if (autoSeq) {
+            autoSeqTimer = setInterval(() => {
+                const nextIdx = (currentSceneIdx + 1) % CATALOG.length;
+                loadScene(nextIdx);
+            }, autoInterval * 1000);
+        }
+    }
+
+    function toggleAutoRot() {
+        autoRot = !autoRot;
+        document.getElementById('btnAutoRot').classList.toggle('active', autoRot);
+    }
+
+    function toggleEclipseBg() {
+        eclipseBgOn = !eclipseBgOn;
+        document.getElementById('btnEclipseBg').classList.toggle('active', eclipseBgOn);
+    }
+
+    function setStrobe(state) {
+        strobeActive = state;
+    }
+
+    // ========================================================
+    // IOS OPTIMIZED VIDEO EXPORT ENGINE (CFR H.264 + AAC MP4)
+    // ========================================================
+    let isExporting = false;
+    let cancelExportReq = false;
+    let exportStartTimeMs = 0;
+    let exportWakeLock = null;
+    let currentExportBlob = null;
+    let currentExportFilename = '';
+    let exportMethodName = '';
+
+    // Fast bit-reversal FFT for deterministic frame audio analysis
+    function fft(re, im) {
+        const n = re.length;
+        for (let i = 1, j = 0; i < n; i++) {
+            let b = n >> 1;
+            for (; j & b; b >>= 1) j ^= b;
+            j ^= b;
+            if (i < j) {
+                [re[i], re[j]] = [re[j], re[i]];
+                [im[i], im[j]] = [im[j], im[i]];
+            }
+        }
+        for (let l = 2; l <= n; l <<= 1) {
+            const a = -2 * Math.PI / l, h = l >> 1;
+            for (let i = 0; i < n; i += l) {
+                for (let k = 0; k < h; k++) {
+                    const c = Math.cos(a * k), s = Math.sin(a * k);
+                    const x = i + k, y = x + h;
+                    const tr = re[y] * c - im[y] * s;
+                    const ti = re[y] * s + im[y] * c;
+                    re[y] = re[x] - tr;
+                    im[y] = im[x] - ti;
+                    re[x] += tr;
+                    im[x] += ti;
+                }
+            }
+        }
+    }
+
+    const smSpectrum = new Float32Array(256);
+    function computeFrameSpectrum(mono, sr, tc) {
+        const N = 512;
+        const re = new Float32Array(N);
+        const im = new Float32Array(N);
+        const e = Math.floor(tc * sr);
+        for (let i = 0; i < N; i++) {
+            const k = e - N + i;
+            const x = (k >= 0 && k < mono.length) ? mono[k] : 0;
+            // Blackman-Harris window
+            re[i] = x * (0.42 - 0.5 * Math.cos(2 * Math.PI * i / N) + 0.08 * Math.cos(4 * Math.PI * i / N));
+        }
+        fft(re, im);
+        for (let k = 0; k < 256; k++) {
+            smSpectrum[k] = 0.78 * smSpectrum[k] + 0.22 * (Math.hypot(re[k], im[k]) / N);
+            const db = 20 * Math.log10(smSpectrum[k] + 1e-9);
+            const val = Math.max(0, Math.min(255, 255 * (db + 100) / 70));
+            if (k < freqData.length) freqData[k] = val;
+        }
+        // Fill timeData for oscilloscope waves
+        for (let j = 0; j < timeData.length; j++) {
+            const idx = e - 64 + j;
+            const samp = (idx >= 0 && idx < mono.length) ? mono[idx] : 0;
+            timeData[j] = Math.max(0, Math.min(255, Math.floor(128 + samp * 127)));
+        }
+        // Calculate bass, mid, hi, vol with smoothed responsiveness
+        let rb = 0, rm = 0, rh = 0;
+        const fl = freqData.length;
+        for (let k = 0; k < 4; k++) rb += freqData[k];
+        for (let k = 4; k < 20; k++) rm += freqData[k];
+        for (let k = 20; k < fl; k++) rh += freqData[k];
+        const smK = 0.35;
+        bass = bass + ((rb / (4 * 255)) * audioSens - bass) * smK;
+        mid = mid + ((rm / (16 * 255)) * audioSens - mid) * smK;
+        hi = hi + ((rh / ((fl - 20) * 255)) * audioSens - hi) * smK;
+        vol = bass * 0.5 + mid * 0.3 + hi * 0.2;
+    }
+
+    // Hardware H.264 profile selector for iOS and high-resolution export
+    const vcodec = (w, h, fps = 30) => {
+        const m = Math.ceil(w / 16) * Math.ceil(h / 16) * fps;
+        return m <= 245760 ? 'avc1.640029' : m <= 522240 ? 'avc1.64002a' : m <= 589824 ? 'avc1.640032' : 'avc1.640033';
+    };
+
+    // AudioSpecificConfig for AAC-LC
+    const ascOf = (r) => {
+        const f = [96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000].indexOf(r);
+        const i = f < 0 ? 4 : f;
+        return new Uint8Array([16 | (i >> 1), ((i & 1) << 7) | 16]);
+    };
+
+    // Extract decoded PCM stereo data
+    async function getAudioPCM(st, len) {
+        if (audioBuf) {
+            return {
+                sr: audioBuf.sampleRate,
+                c0: audioBuf.getChannelData(0),
+                c1: audioBuf.getChannelData(audioBuf.numberOfChannels > 1 ? 1 : 0),
+                base: 0
+            };
+        }
+        if (currentAudioFile) {
+            try {
+                const ab = await audioCtx.decodeAudioData(await currentAudioFile.arrayBuffer());
+                audioBuf = ab;
+                return {
+                    sr: ab.sampleRate,
+                    c0: ab.getChannelData(0),
+                    c1: ab.getChannelData(ab.numberOfChannels > 1 ? 1 : 0),
+                    base: 0
+                };
+            } catch (e) {
+                console.warn("Error decodificando audio para exportación:", e);
+            }
+        }
+        // Fallback: generate Synthwave demo audio buffer
+        if (!synthDemoBuffer) generateSynthDemoBuffer();
+        audioBuf = synthDemoBuffer;
+        audioDuration = synthDemoBuffer.duration;
+        return {
+            sr: audioBuf.sampleRate,
+            c0: audioBuf.getChannelData(0),
+            c1: audioBuf.getChannelData(1),
+            base: 0
+        };
+    }
+
+    // Deterministic CFR MP4 export (H.264 + AAC via WebCodecs + mp4-muxer)
+    async function exportCFR(st, len, [w, h], fps = 30, bpp = 0.09) {
+        const P = await getAudioPCM(st, len);
+        const sr = P.sr, c0 = P.c0, c1 = P.c1, base = P.base;
+        const mono = new Float32Array(c0.length);
+        let pk = 0;
+        for (let i = 0; i < c0.length; i += 64) pk = Math.max(pk, Math.abs(c0[i]));
+        if (pk < 0.002) {
+            console.warn("Audio de entrada muy tenue o silencioso.");
+        }
+        for (let i = 0; i < mono.length; i++) {
+            mono[i] = (c0[i] + c1[i]) / 2;
+        }
+
+        const rel = st - base;
+        const total = Math.min(len, (c0.length / sr) - rel);
+        const nF = Math.floor(total * fps);
+        const s0 = Math.floor(rel * sr);
+        const aEnd = Math.floor((rel + total) * sr);
+
+        // Offscreen canvas if resolution differs from masterCanvas
+        const needRescale = (w !== CANVAS_W || h !== CANVAS_H);
+        const exportCanvas = needRescale ? document.createElement('canvas') : masterCanvas;
+        if (needRescale) {
+            exportCanvas.width = w;
+            exportCanvas.height = h;
+        }
+        const exportCtx = needRescale ? exportCanvas.getContext('2d', { alpha: false }) : masterCtx;
+
+        if (!window.Mp4Muxer) {
+            throw new Error("Biblioteca mp4-muxer no cargada en el navegador");
+        }
+
+        const tg = new Mp4Muxer.ArrayBufferTarget();
+        const mux = new Mp4Muxer.Muxer({
+            target: tg,
+            fastStart: 'in-memory',
+            video: { codec: 'avc', width: w, height: h },
+            audio: { codec: 'aac', sampleRate: sr, numberOfChannels: 2 }
+        });
+
+        let err = null;
+        let na = 0, adts = 0, dsc = 0;
+
+        const ve = new VideoEncoder({
+            output: (chunk, meta) => mux.addVideoChunk(chunk, meta),
+            error: (e) => { err = e; }
+        });
+
+        const ae = new AudioEncoder({
+            output: (chunk, meta) => {
+                na++;
+                let ch = chunk;
+                const d = new Uint8Array(chunk.byteLength);
+                chunk.copyTo(d);
+                if (d[0] === 0xFF && (d[1] & 0xF0) === 0xF0) {
+                    adts = 1;
+                    ch = new EncodedAudioChunk({
+                        type: 'key',
+                        timestamp: chunk.timestamp,
+                        duration: chunk.duration || undefined,
+                        data: d.subarray(d[1] & 1 ? 7 : 9)
+                    });
+                }
+                if (meta && meta.decoderConfig) dsc = meta.decoderConfig.description ? 1 : 0;
+                mux.addAudioChunk(ch, na === 1 || (meta && meta.decoderConfig) ? {
+                    decoderConfig: {
+                        codec: 'mp4a.40.2',
+                        sampleRate: sr,
+                        numberOfChannels: 2,
+                        description: ascOf(sr)
+                    }
+                } : undefined);
+            },
+            error: (e) => { err = e; }
+        });
+
+        const targetBitrate = Math.min(Math.round(w * h * fps * bpp), (w > 1200 || fps > 30) ? 24e6 : 14e6);
+        ve.configure({
+            codec: vcodec(w, h, fps),
+            width: w,
+            height: h,
+            bitrate: targetBitrate,
+            framerate: fps
+        });
+
+        ae.configure({
+            codec: 'mp4a.40.2',
+            sampleRate: sr,
+            numberOfChannels: 2,
+            bitrate: 192000,
+            aac: { format: 'aac' }
+        });
+
+        smSpectrum.fill(0);
+        let ap = s0;
+        exportStartTimeMs = performance.now();
+
+        for (let i = 0; i < nF; i++) {
+            if (err) throw err;
+            if (cancelExportReq) throw new Error("Cancelado por el usuario");
+
+            const curT = rel + (i / fps);
+            computeFrameSpectrum(mono, sr, curT);
+
+            // Step Three.js scene & render
+            updateThree3D(curT, 1 / fps);
+
+            // Composite onto master canvas
+            masterCtx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+            masterCtx.drawImage(threeCanvas, 0, 0, CANVAS_W, CANVAS_H);
+
+            if (meshOn) {
+                drawSynthwaveMesh(masterCtx, 1 / fps);
+            }
+            if (eqOn) {
+                drawSelectedEqualizer(masterCtx, 1 / fps);
+            }
+            if (mediaImage) {
+                masterCtx.save();
+                masterCtx.globalAlpha = 0.85;
+                const mw = CANVAS_W * 0.4;
+                const mh = (mediaImage.height / mediaImage.width) * mw;
+                masterCtx.drawImage(mediaImage, (CANVAS_W - mw) / 2, CANVAS_H * 0.15, mw, mh);
+                masterCtx.restore();
+            }
+            if (strobeActive) {
+                masterCtx.fillStyle = `rgba(255, 255, 255, ${Math.random() > 0.5 ? 0.9 : 0.2})`;
+                masterCtx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+            }
+
+            // Copy to export canvas if rescaling
+            let targetFrameCanvas = masterCanvas;
+            if (needRescale) {
+                exportCtx.clearRect(0, 0, w, h);
+                exportCtx.drawImage(masterCanvas, 0, 0, w, h);
+                targetFrameCanvas = exportCanvas;
+            }
+
+            const fr = new VideoFrame(targetFrameCanvas, {
+                timestamp: Math.round(i * 1e6 / fps),
+                duration: Math.round(1e6 / fps)
+            });
+            ve.encode(fr, { keyFrame: i % 60 === 0 });
+            fr.close();
+
+            // Encode matching audio frames
+            const lim = Math.min(aEnd, Math.floor((rel + (i + 1) / fps) * sr));
+            while (ap < lim) {
+                const n = Math.min(2048, aEnd - ap);
+                const d = new Float32Array(n * 2);
+                d.set(c0.subarray(ap, ap + n));
+                d.set(c1.subarray(ap, ap + n), n);
+                const ad = new AudioData({
+                    format: 'f32-planar',
+                    sampleRate: sr,
+                    numberOfFrames: n,
+                    numberOfChannels: 2,
+                    timestamp: Math.round(((ap - s0) / sr) * 1e6),
+                    data: d
+                });
+                ae.encode(ad);
+                ad.close();
+                ap += n;
+            }
+
+            while (ve.encodeQueueSize > 6 || ae.encodeQueueSize > 40) {
+                await new Promise(r => setTimeout(r, 4));
+            }
+
+            if (i % 3 === 0 || i === nF - 1) {
+                const pct = Math.round((i / nF) * 100);
+                const elapsedS = (performance.now() - exportStartTimeMs) / 1000;
+                const etaS = Math.max(0, Math.round((elapsedS * (nF - i)) / Math.max(1, i)));
+                updateExportProgress(pct, etaS, fps, i, nF);
+                await new Promise(r => setTimeout(r, 0));
+            }
+        }
+
+        await ve.flush();
+        await ae.flush();
+        if (err) throw err;
+        if (!na) throw new Error("El codificador de audio no produjo bloques.");
+
+        mux.finalize();
+        ve.close();
+        ae.close();
+
+        return new Blob([tg.buffer], { type: 'video/mp4' });
+    }
+
+    // Real-Time export fallback (using MediaRecorder)
+    async function exportRT(st, len) {
+        if (!window.MediaRecorder || !masterCanvas.captureStream) {
+            throw new Error("Este navegador no soporta MediaRecorder");
+        }
+        const types = [
+            'video/mp4;codecs=avc1,mp4a.40.2',
+            'video/mp4',
+            'video/webm;codecs=vp9,opus',
+            'video/webm'
+        ];
+        const mt = types.find(x => MediaRecorder.isTypeSupported(x)) || 'video/webm';
+        const ext = mt.includes('mp4') ? 'mp4' : 'webm';
+
+        playAudioBuffer(st);
+
+        const cs = masterCanvas.captureStream(30);
+        if (audioDestination) {
+            audioDestination.stream.getAudioTracks().forEach(t => cs.addTrack(t));
+        }
+
+        const chunks = [];
+        const mr = new MediaRecorder(cs, { mimeType: mt, videoBitsPerSecond: 6e6 });
+        mr.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+
+        return new Promise((resolve, reject) => {
+            const end = Math.min(audioDuration, st + len);
+            const timer = setInterval(() => {
+                if (cancelExportReq) {
+                    clearInterval(timer);
+                    mr.stop();
+                    reject(new Error("Cancelado"));
+                    return;
+                }
+                const cur = (audioCtx.currentTime - audioStartTime);
+                if (cur >= end || !isPlaying) {
+                    clearInterval(timer);
+                    mr.stop();
+                } else {
+                    const elapsed = cur - st;
+                    const pct = Math.min(100, Math.round((elapsed / len) * 100));
+                    const eta = Math.max(0, Math.round(len - elapsed));
+                    updateExportProgress(pct, eta, 30, Math.round(elapsed * 30), Math.round(len * 30));
+                }
+            }, 200);
+
+            mr.onstop = () => {
+                const blob = new Blob(chunks, { type: mt.split(';')[0] });
+                resolve({ blob, ext });
+            };
+            mr.onerror = (e) => reject(e);
+
+            mr.start(1000);
+        });
+    }
+
+    // UI OPEN/CLOSE MODAL HANDLERS
+    function openExportModal() {
+        const modal = document.getElementById('exportConfigModal');
+        if (!modal) return;
+
+        // Auto-pause live preview playback
+        if (isPlaying) togglePlayPause();
+
+        const stSlider = document.getElementById('exportStartTime');
+        const stLabel = document.getElementById('exportStartTimeLabel');
+        const dur = audioDuration || 30;
+        if (stSlider) {
+            stSlider.max = Math.max(0, Math.floor(dur - 5));
+            stSlider.value = Math.min(stSlider.max, Math.floor(audioPausedTime || 0));
+            if (stLabel) stLabel.innerText = formatTime(stSlider.value);
+        }
+
+        updateExportEstimate();
+        modal.classList.remove('hidden');
+    }
+
+    function closeExportModal() {
+        const modal = document.getElementById('exportConfigModal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    function applyExportPreset(presetIdx) {
+        const presets = [
+            { res: '1080', fps: '30', q: '0.09' }, // 0: TikTok / Reels estándar
+            { res: '1080', fps: '60', q: '0.09' }, // 1: Ultra fluido
+            { res: '1440', fps: '30', q: '0.09' }, // 2: iPhone 15 Pro / Max
+            { res: '720',  fps: '30', q: '0.06' }  // 3: Ligero y rápido
+        ];
+        const p = presets[presetIdx];
+        if (!p) return;
+
+        document.getElementById('exportResSelect').value = p.res;
+        document.getElementById('exportFpsSelect').value = p.fps;
+        document.getElementById('exportQualitySelect').value = p.q;
+        updateExportEstimate();
+    }
+
+    function updateExportEstimate() {
+        const resVal = document.getElementById('exportResSelect')?.value || '1080';
+        const fpsVal = +(document.getElementById('exportFpsSelect')?.value || 30);
+        const qVal = +(document.getElementById('exportQualitySelect')?.value || 0.09);
+        const lenVal = +(document.getElementById('exportDurationSelect')?.value || 30);
+
+        const r = ({ '720': [720, 1280], '1080': [1080, 1920], '1440': [1440, 2560] })[resVal] || [1080, 1920];
+        const br = Math.min(r[0] * r[1] * fpsVal * qVal, (r[0] > 1200 || fpsVal > 30) ? 24e6 : 14e6);
+        const estMb = ((br / 8 + 24e3) * lenVal / 1e6).toFixed(1);
+        const mbps = (br / 1e6).toFixed(1);
+
+        const estElem = document.getElementById('exportEstimateText');
+        if (estElem) {
+            estElem.innerText = `≈ ${mbps} Mbps · unos ${estMb} MB para ${lenVal} s (H.264 + AAC)`;
+        }
+    }
+
+    function updateExportProgress(pct, etaSec, fps, curFrame = 0, totalFrames = 0) {
+        const bar = document.getElementById('exportProgressFill');
+        const pctLabel = document.getElementById('exportProgressPct');
+        const subLabel = document.getElementById('exportProgressSub');
+
+        if (bar) bar.style.width = `${pct}%`;
+        if (pctLabel) pctLabel.innerText = `${pct}%`;
+        if (subLabel) {
+            subLabel.innerText = `Renderizando fotograma ${curFrame}/${totalFrames} · quedan ~${etaSec} s · ${fps} fps constantes`;
+        }
+    }
+
+    function cancelExport() {
+        cancelExportReq = true;
+    }
+
+    async function startExportProcess() {
+        if (isExporting) return;
+
+        const st = +(document.getElementById('exportStartTime')?.value || 0);
+        const len = +(document.getElementById('exportDurationSelect')?.value || 30);
+        const resVal = document.getElementById('exportResSelect')?.value || '1080';
+        const fpsVal = +(document.getElementById('exportFpsSelect')?.value || 30);
+        const qVal = +(document.getElementById('exportQualitySelect')?.value || 0.09);
+        const methodVal = document.getElementById('exportMethodSelect')?.value || 'cfr';
+
+        const resMap = {
+            '720': [720, 1280],
+            '1080': [1080, 1920],
+            '1440': [1440, 2560]
+        };
+        const targetRes = resMap[resVal] || [1080, 1920];
+
+        // Ensure audio buffer exists
+        if (!audioBuf && !currentAudioFile && !isSynthDemo) {
+            generateSynthDemoBuffer();
+            audioBuf = synthDemoBuffer;
+            audioDuration = synthDemoBuffer.duration;
+        }
+
+        // Close config modal, open progress modal
+        closeExportModal();
+        const progModal = document.getElementById('exportProgressModal');
+        if (progModal) progModal.classList.remove('hidden');
+
+        isExporting = true;
+        cancelExportReq = false;
+
+        // Request wake lock so iPhone doesn't lock screen during export
+        try {
+            if (navigator.wakeLock) {
+                exportWakeLock = await navigator.wakeLock.request('screen');
+            }
+        } catch (e) {
+            console.log("WakeLock no disponible:", e);
+        }
+
+        try {
+            let blob = null;
+            let ext = 'mp4';
+
+            // Check WebCodecs support
+            const canCFR = !!(
+                methodVal === 'cfr' &&
+                window.VideoEncoder &&
+                window.AudioEncoder &&
+                window.VideoFrame &&
+                window.AudioData &&
+                window.Mp4Muxer
+            );
+
+            if (canCFR) {
+                exportMethodName = `Render Preciso CFR (${targetRes[0]}×${targetRes[1]} @ ${fpsVal} fps)`;
+                blob = await exportCFR(st, len, targetRes, fpsVal, qVal);
+            } else {
+                exportMethodName = 'Grabación en Tiempo Real';
+                const rtRes = await exportRT(st, len);
+                blob = rtRes.blob;
+                ext = rtRes.ext;
+            }
+
+            if (progModal) progModal.classList.add('hidden');
+            showExportResultModal(blob, ext, targetRes, len);
+
+        } catch (err) {
+            console.error("Fallo durante la exportación:", err);
+            if (progModal) progModal.classList.add('hidden');
+            if (cancelExportReq) {
+                showMessage("Exportación Cancelada", "El proceso de exportación fue detenido por el usuario.");
+            } else {
+                showMessage("Aviso de Exportación", `Falló el renderizado (${err.message || err}). Te recomendamos probar con resolución 1080p a 30 fps.`);
+            }
+        } finally {
+            isExporting = false;
+            try {
+                if (exportWakeLock) {
+                    await exportWakeLock.release();
+                    exportWakeLock = null;
+                }
+            } catch (e) {}
+        }
+    }
+
+    function showExportResultModal(blob, ext, res = [1080, 1920], duration = 30) {
+        currentExportBlob = blob;
+        currentExportFilename = `NeonVJ_iOS_${Date.now()}.${ext}`;
+
+        const modal = document.getElementById('exportResultModal');
+        const videoElem = document.getElementById('exportResultPlayer');
+        const statsElem = document.getElementById('exportResultStats');
+
+        if (!modal || !videoElem) return;
+
+        const blobUrl = URL.createObjectURL(blob);
+        videoElem.src = blobUrl;
+        videoElem.play().catch(() => {});
+
+        const sizeMb = (blob.size / (1024 * 1024)).toFixed(1);
+        if (statsElem) {
+            statsElem.innerHTML = `
+                <span class="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold">${res[0]}×${res[1]} (9:16)</span>
+                <span class="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30 font-bold">${sizeMb} MB</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">H.264 + AAC</span>
+                <span class="px-2 py-0.5 rounded bg-pink-500/20 text-pink-300 border border-pink-500/30 font-bold">${duration} s</span>
+            `;
+        }
+
+        modal.classList.remove('hidden');
+    }
+
+    function closeExportResultModal() {
+        const modal = document.getElementById('exportResultModal');
+        const videoElem = document.getElementById('exportResultPlayer');
+        if (videoElem) {
+            videoElem.pause();
+            videoElem.src = '';
+        }
+        if (modal) modal.classList.add('hidden');
+    }
+
+    // iOS Photos Carrete Share Flow
+    async function shareToIosPhotos() {
+        if (!currentExportBlob) return;
+
+        const file = new File([currentExportBlob], currentExportFilename, { type: currentExportBlob.type });
+
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
+                await navigator.share({
+                    files: [file],
+                    title: 'Neon VJ 9:16 Video',
+                    text: 'Exportado en Neon VJ Engine para iPhone 15'
+                });
+                showMessage("Video en Fotos", "Si tocaste «Guardar vídeo» en el menú de iOS, tu creación ya está guardada en el Carrete de Fotos de tu iPhone.");
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    console.warn("Share sheet cancelado o con error:", err);
+                    downloadCurrentExport();
+                }
+            }
+        } else {
+            downloadCurrentExport();
+        }
+    }
+
+    function downloadCurrentExport() {
+        if (!currentExportBlob) return;
+        const url = URL.createObjectURL(currentExportBlob);
+        const a = document.getElementById('downloadLink');
+        a.href = url;
+        a.download = currentExportFilename;
+        a.click();
+        setTimeout(() => {
+            window.URL.revokeObjectURL(url);
+        }, 300);
+    }
+
+    // ========================================================
+    // IOS HOME SCREEN INSTALLATION HELPERS
+    // ========================================================
+    const APP_PUBLIC_URL = 'https://ais-pre-jgj2mcabzqguny4u27vdzv-457611415909.europe-west3.run.app';
+
+    function openIosInstallModal() {
+        const modal = document.getElementById('iosInstallModal');
+        if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeIosInstallModal() {
+        const modal = document.getElementById('iosInstallModal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    async function shareAppUrl() {
+        const urlToShare = APP_PUBLIC_URL;
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: 'NEON VJ ENGINE',
+                    text: 'Estudio VJ 3D & Synthwave para iPhone 15',
+                    url: urlToShare
+                });
+                return;
+            } catch (err) {
+                if (err.name === 'AbortError') return;
+            }
+        }
+        copyAppUrl();
+    }
+
+    function copyAppUrl() {
+        const urlToShare = APP_PUBLIC_URL;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(urlToShare).then(() => {
+                showMessage("Enlace Copiado", "El enlace público de la aplicación se ha copiado al portapapeles. Ábrelo en Safari en tu iPhone 15 para añadirlo a tu Pantalla de Inicio.");
+            }).catch(() => {
+                prompt("Copia este enlace para abrirlo en Safari en tu iPhone:", urlToShare);
+            });
+        } else {
+            prompt("Copia este enlace para abrirlo en Safari en tu iPhone:", urlToShare);
+        }
+    }
+    </script>
+
+    <!-- ======================================================== -->
+    <!-- MODAL 1: CONFIGURACIÓN DE EXPORTACIÓN (IPHONE 15 / TIKTOK) -->
+    <!-- ======================================================== -->
+    <div id="exportConfigModal" class="fixed inset-0 z-[120] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 hidden" style="padding-top: calc(env(safe-area-inset-top, 0px) + 12px); padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);">
+        <div class="bg-[#070c14] border border-rose-500/40 rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto p-5 shadow-[0_0_40px_rgba(255,45,120,0.3)] flex flex-col gap-3.5">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-rose-500 animate-pulse"></span>
+                    <h2 class="text-sm font-['Orbitron'] font-black text-white tracking-wider">
+                        EXPORTAR VIDEO MP4
+                    </h2>
+                </div>
+                <button onclick="closeExportModal()" class="w-7 h-7 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark text-sm"></i>
+                </button>
+            </div>
+
+            <!-- Preajustes Rápidos -->
+            <div>
+                <label class="text-[10px] text-cyan-400 font-bold uppercase font-['Orbitron'] block mb-1.5">
+                    Preajustes Recomendados
+                </label>
+                <div class="grid grid-cols-2 gap-1.5">
+                    <button type="button" onclick="applyExportPreset(0)" class="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-cyan-500/30 hover:border-cyan-400 text-slate-200 hover:text-white text-[10px] text-left transition">
+                        <div class="font-bold text-cyan-300">📱 TikTok / Reels</div>
+                        <div class="text-[8px] text-slate-400">1080p · 30 FPS Constantes</div>
+                    </button>
+                    <button type="button" onclick="applyExportPreset(1)" class="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-purple-500/30 hover:border-purple-400 text-slate-200 hover:text-white text-[10px] text-left transition">
+                        <div class="font-bold text-purple-300">⚡ Ultra Fluido</div>
+                        <div class="text-[8px] text-slate-400">1080p · 60 FPS Suave</div>
+                    </button>
+                    <button type="button" onclick="applyExportPreset(2)" class="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-pink-500/30 hover:border-pink-400 text-slate-200 hover:text-white text-[10px] text-left transition">
+                        <div class="font-bold text-pink-300">🍏 iPhone 15 Pro</div>
+                        <div class="text-[8px] text-slate-400">1440p (2K) · 30 FPS</div>
+                    </button>
+                    <button type="button" onclick="applyExportPreset(3)" class="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-emerald-500/30 hover:border-emerald-400 text-slate-200 hover:text-white text-[10px] text-left transition">
+                        <div class="font-bold text-emerald-300">🚀 Rápido & Ligero</div>
+                        <div class="text-[8px] text-slate-400">720p · Archivo compacto</div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Duración & Inicio del Clip -->
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="text-[10px] text-slate-300 font-bold block mb-1">
+                        Duración del Clip
+                    </label>
+                    <select id="exportDurationSelect" onchange="updateExportEstimate()" class="w-full bg-slate-900 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-cyan-400">
+                        <option value="15">15 Segundos (Stories)</option>
+                        <option value="30" selected>30 Segundos (Recomendado)</option>
+                        <option value="45">45 Segundos</option>
+                        <option value="60">60 Segundos (Reels)</option>
+                        <option value="90">90 Segundos</option>
+                        <option value="600">Hasta el final del audio</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[10px] text-slate-300 font-bold block mb-1 flex justify-between">
+                        <span>Inicio:</span>
+                        <span id="exportStartTimeLabel" class="text-cyan-400 font-mono">0:00</span>
+                    </label>
+                    <input type="range" id="exportStartTime" min="0" max="0" value="0" step="1" oninput="document.getElementById('exportStartTimeLabel').innerText = formatTime(this.value)" class="w-full mt-2">
+                </div>
+            </div>
+
+            <!-- Resolución, FPS y Calidad -->
+            <div class="grid grid-cols-3 gap-2">
+                <div>
+                    <label class="text-[9px] text-slate-300 font-bold block mb-1">Resolución</label>
+                    <select id="exportResSelect" onchange="updateExportEstimate()" class="w-full bg-slate-900 border border-slate-700 text-white rounded-lg p-1.5 text-xs focus:outline-none focus:border-cyan-400">
+                        <option value="720">720×1280</option>
+                        <option value="1080" selected>1080×1920 (9:16)</option>
+                        <option value="1440">1440×2560 (2K)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[9px] text-slate-300 font-bold block mb-1">Fotogramas</label>
+                    <select id="exportFpsSelect" onchange="updateExportEstimate()" class="w-full bg-slate-900 border border-slate-700 text-white rounded-lg p-1.5 text-xs focus:outline-none focus:border-cyan-400">
+                        <option value="30" selected>30 FPS</option>
+                        <option value="60">60 FPS</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[9px] text-slate-300 font-bold block mb-1">Calidad</label>
+                    <select id="exportQualitySelect" onchange="updateExportEstimate()" class="w-full bg-slate-900 border border-slate-700 text-white rounded-lg p-1.5 text-xs focus:outline-none focus:border-cyan-400">
+                        <option value="0.06">Ligera</option>
+                        <option value="0.09" selected>Media</option>
+                        <option value="0.13">Alta</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Método de Exportación -->
+            <div>
+                <label class="text-[10px] text-slate-300 font-bold block mb-1">Motor de Codificación</label>
+                <select id="exportMethodSelect" class="w-full bg-slate-900 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-cyan-400">
+                    <option value="cfr" selected>Render Preciso CFR (H.264 + AAC WebCodecs · Sin lag)</option>
+                    <option value="rt">Grabación en Tiempo Real (MediaRecorder)</option>
+                </select>
+            </div>
+
+            <!-- Dynamic Estimated Size & Advice -->
+            <div class="bg-black/60 border border-slate-800 rounded-xl p-2.5 flex flex-col gap-1">
+                <div class="text-[10px] text-cyan-300 font-mono font-bold flex items-center gap-1.5">
+                    <i class="fa-solid fa-chart-simple"></i>
+                    <span id="exportEstimateText">≈ 14.2 Mbps · unos 16 MB para 30 s</span>
+                </div>
+                <div class="text-[8px] text-slate-400 leading-tight">
+                    Optimizado con aceleración H.264 por hardware para el procesador A16/A17 de iPhone 15. Guardado directo al Carrete de Fotos mediante iOS Share Sheet.
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex gap-2 pt-1">
+                <button type="button" onclick="closeExportModal()" class="flex-1 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:text-white font-bold text-xs transition">
+                    Cancelar
+                </button>
+                <button type="button" onclick="startExportProcess()" class="flex-[2] py-2.5 rounded-xl bg-gradient-to-r from-rose-600 via-pink-600 to-purple-600 hover:from-rose-500 hover:to-purple-500 text-white font-['Orbitron'] font-bold text-xs tracking-wider transition shadow-lg shadow-rose-950/60 active:scale-95 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-play text-[9px]"></i>
+                    <span>INICIAR EXPORTACIÓN</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- MODAL 2: PROGRESO DE EXPORTACIÓN Y RENDER DETERMINISTA   -->
+    <!-- ======================================================== -->
+    <div id="exportProgressModal" class="fixed inset-0 z-[130] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 hidden">
+        <div class="bg-[#070c14] border border-purple-500/50 rounded-2xl w-full max-w-sm p-6 text-center shadow-[0_0_50px_rgba(255,0,255,0.35)] flex flex-col items-center gap-3">
+            <div class="w-12 h-12 rounded-full border-2 border-cyan-400 border-t-transparent animate-spin flex items-center justify-center">
+                <i class="fa-solid fa-film text-pink-400 text-sm"></i>
+            </div>
+            
+            <h3 class="text-sm font-['Orbitron'] font-black text-white tracking-wider">
+                GENERANDO VIDEO MP4
+            </h3>
+
+            <!-- Progress Percentage -->
+            <div id="exportProgressPct" class="text-2xl font-black font-['Orbitron'] text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-500">
+                0%
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden border border-purple-500/30">
+                <div id="exportProgressFill" class="h-full bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 transition-all duration-150 w-0"></div>
+            </div>
+
+            <!-- Subtitle status -->
+            <p id="exportProgressSub" class="text-[10px] text-slate-300 font-mono">
+                Iniciando codificación H.264...
+            </p>
+
+            <p class="text-[8px] text-slate-500 leading-tight">
+                Mantén la pantalla encendida y la app visible mientras se renderiza el video fotograma a fotograma sin lag.
+            </p>
+
+            <button type="button" onclick="cancelExport()" class="mt-2 px-4 py-1.5 rounded-lg border border-red-500/50 hover:bg-red-950/40 text-red-300 text-[10px] font-bold transition">
+                ✕ Cancelar Exportación
+            </button>
+        </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- MODAL 3: RESULTADO LISTO & GUARDAR EN FOTOS IPHONE 15    -->
+    <!-- ======================================================== -->
+    <div id="exportResultModal" class="fixed inset-0 z-[140] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 hidden" style="padding-top: calc(env(safe-area-inset-top, 0px) + 12px); padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);">
+        <div class="bg-[#070c14] border border-cyan-500/50 rounded-2xl w-full max-w-sm max-h-[92vh] overflow-y-auto p-5 text-center shadow-[0_0_50px_rgba(0,245,255,0.35)] flex flex-col items-center gap-3">
+            <div class="flex items-center justify-between w-full border-b border-slate-800 pb-2">
+                <div class="flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]"></span>
+                    <span class="text-xs font-['Orbitron'] font-black text-white tracking-wider">¡VÍDEO LISTO!</span>
+                </div>
+                <button onclick="closeExportResultModal()" class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center">
+                    <i class="fa-solid fa-xmark text-xs"></i>
+                </button>
+            </div>
+
+            <!-- Video Player -->
+            <div class="w-full rounded-xl overflow-hidden border border-slate-800 bg-black aspect-[9/16] max-h-[44vh] flex items-center justify-center">
+                <video id="exportResultPlayer" controls playsinline loop class="w-full h-full object-contain"></video>
+            </div>
+
+            <!-- Stats badges -->
+            <div id="exportResultStats" class="flex flex-wrap justify-center gap-1 text-[9px] font-mono">
+                <!-- Dynamically populated -->
+            </div>
+
+            <!-- Prominent Primary Action: Guardar en Fotos -->
+            <button type="button" onclick="shareToIosPhotos()" class="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 via-cyan-500 to-blue-600 hover:from-emerald-400 hover:to-blue-500 text-black font-['Orbitron'] font-black text-xs tracking-wider transition shadow-lg shadow-cyan-950/60 active:scale-95 flex items-center justify-center gap-2">
+                <i class="fa-solid fa-share-nodes text-sm"></i>
+                <span>GUARDAR EN FOTOS (CARRETE IPHONE)</span>
+            </button>
+            <p class="text-[8px] text-cyan-300 -mt-1 leading-tight">
+                Toca aquí y selecciona <b>«Guardar vídeo»</b> en la hoja de compartir de iOS para enviarlo directo a tu galería de Fotos.
+            </p>
+
+            <!-- Secondary Action: Descarga directa -->
+            <div class="flex gap-2 w-full pt-1">
+                <button type="button" onclick="downloadCurrentExport()" class="flex-1 py-2 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 text-[10px] font-bold transition flex items-center justify-center gap-1">
+                    <i class="fa-solid fa-download"></i> Descargar archivo
+                </button>
+                <button type="button" onclick="closeExportResultModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-[10px] font-bold transition">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cuadro de mensajes Modal Personalizado (iOS & PWA Friendly) -->
+    <div id="messageBox" class="fixed inset-0 z-[150] flex items-center justify-center bg-black/85 backdrop-blur-sm hidden">
+        <div class="bg-gray-950 border border-purple-500/50 p-6 rounded-2xl max-w-sm text-center shadow-[0_0_30px_rgba(255,0,255,0.3)] mx-4">
+            <h3 id="msgTitle" class="text-white font-bold text-base mb-2 font-['Orbitron']">Aviso</h3>
+            <p id="msgText" class="text-gray-300 text-xs mb-4">Texto de mensaje...</p>
+            <button id="msgCloseBtn" onclick="closeMessage()" class="px-5 py-2 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold rounded-xl text-xs font-['Orbitron'] transition">Entendido</button>
+        </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- MODAL: GUÍA PARA AÑADIR A PANTALLA DE INICIO (IPHONE 15)  -->
+    <!-- ======================================================== -->
+    <div id="iosInstallModal" class="fixed inset-0 z-[160] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 hidden" style="padding-top: calc(env(safe-area-inset-top, 0px) + 12px); padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);">
+        <div class="bg-[#070c14] border border-cyan-500/50 rounded-2xl w-full max-w-sm max-h-[92vh] overflow-y-auto p-5 shadow-[0_0_50px_rgba(0,245,255,0.35)] flex flex-col gap-3.5">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-cyan-500 to-purple-600 flex items-center justify-center text-white text-xs">
+                        <i class="fa-solid fa-arrow-up-from-bracket"></i>
+                    </div>
+                    <h2 class="text-xs font-['Orbitron'] font-black text-white tracking-wider">
+                        AÑADIR A PANTALLA DE INICIO
+                    </h2>
+                </div>
+                <button onclick="closeIosInstallModal()" class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center">
+                    <i class="fa-solid fa-xmark text-xs"></i>
+                </button>
+            </div>
+
+            <p class="text-[11px] text-slate-300">
+                Sigue estos pasos en tu <b>iPhone 15</b> para guardar la aplicación como una app nativa a pantalla completa:
+            </p>
+
+            <!-- Steps list -->
+            <div class="space-y-2 text-[10px]">
+                <div class="flex items-start gap-2.5 p-2 rounded-xl bg-slate-900/80 border border-slate-800">
+                    <span class="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold flex items-center justify-center flex-shrink-0 text-[10px]">1</span>
+                    <div class="text-slate-300 leading-tight">
+                        Abre este enlace en el navegador <b>Safari</b> de tu iPhone.
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-2.5 p-2 rounded-xl bg-slate-900/80 border border-slate-800">
+                    <span class="w-5 h-5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40 font-bold flex items-center justify-center flex-shrink-0 text-[10px]">2</span>
+                    <div class="text-slate-300 leading-tight">
+                        Toca el botón <b>Compartir</b> de Safari: icono de cuadro con flecha hacia arriba <span class="text-cyan-300 font-bold font-mono">[ ↑ ]</span> (en la barra inferior).
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-2.5 p-2 rounded-xl bg-slate-900/80 border border-slate-800">
+                    <span class="w-5 h-5 rounded-full bg-pink-500/20 text-pink-300 border border-pink-500/40 font-bold flex items-center justify-center flex-shrink-0 text-[10px]">3</span>
+                    <div class="text-slate-300 leading-tight">
+                        Desplaza hacia abajo y selecciona <b>«Añadir a pantalla de inicio»</b> (icono <i class="fa-solid fa-plus text-pink-400"></i>).
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-2.5 p-2 rounded-xl bg-slate-900/80 border border-slate-800">
+                    <span class="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold flex items-center justify-center flex-shrink-0 text-[10px]">4</span>
+                    <div class="text-slate-300 leading-tight">
+                        Toca <b>«Añadir»</b> arriba a la derecha. ¡Listo! Ya tendrás el icono de <b>Neon VJ</b> en tu pantalla de inicio.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Perks badge -->
+            <div class="p-2 rounded-xl bg-gradient-to-r from-purple-950/40 to-cyan-950/40 border border-purple-500/30 text-[9px] text-cyan-200 space-y-1">
+                <div>✨ <b>Pantalla completa 9:16</b> sin barras de navegador.</div>
+                <div>⚡ <b>Rendimiento 60 FPS</b> y exportación directa al Carrete de Fotos.</div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex flex-col gap-2 pt-1">
+                <button type="button" onclick="shareAppUrl()" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-400 hover:to-purple-500 text-white font-['Orbitron'] font-bold text-[11px] tracking-wider transition shadow-lg shadow-cyan-950/50 flex items-center justify-center gap-2 active:scale-95">
+                    <i class="fa-solid fa-share-nodes"></i>
+                    <span>COMPARTIR O ABRIR EN IPHONE</span>
+                </button>
+                <button type="button" onclick="copyAppUrl()" class="w-full py-2 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 text-[10px] font-bold transition flex items-center justify-center gap-1.5">
+                    <i class="fa-regular fa-copy"></i>
+                    <span>Copiar Enlace Público Directo</span>
+                </button>
+                <button type="button" onclick="closeIosInstallModal()" class="w-full py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-[10px] font-bold transition">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

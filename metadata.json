@@ -1,0 +1,6 @@
+{
+  "name": "NEON VJ ENGINE - Synthwave Studio & 3D Visualizer",
+  "description": "Estudio visual VJ 9:16 con 35 escenas 3D reactivas, mallas synthwave personalizables, ecualizadores dinámicos, audio reactivo y exportación en alta definición optimizado para iOS.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

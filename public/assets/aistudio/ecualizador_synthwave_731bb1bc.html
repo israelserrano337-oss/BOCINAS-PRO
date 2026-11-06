@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ecualizador Visual Synthwave Avanzado</title>
+    <!-- Tailwind CSS para diseño responsivo y controles -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #030307;
+            font-family: 'Inter', sans-serif;
+            user-select: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        /* Contenedor principal con formato estricto 9:16 vertical */
+        #app-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            max-width: 480px; /* Ancho típico de móvil */
+            max-height: 853px; /* Relación 9:16 exacta para pantallas verticales */
+            overflow: hidden;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.9), 0 0 30px rgba(255, 0, 255, 0.15);
+            background-color: #030307;
+        }
+
+        @media (min-width: 481px) {
+            #app-container {
+                border: 2px solid rgba(255, 0, 255, 0.25);
+                border-radius: 28px;
+            }
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Estilos personalizados para efectos de brillo retro */
+        .retro-glow {
+            text-shadow: 0 0 10px #ff00ff, 0 0 20px #ff00ff, 0 0 30px #00ffff;
+        }
+
+        /* Estilos de scroll personalizado para el panel inferior */
+        .custom-scroll::-webkit-scrollbar {
+            height: 4px;
+            width: 4px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: rgba(255, 0, 255, 0.4);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Contenedor en formato vertical 9:16 -->
+    <div id="app-container">
+        <!-- Lienzo principal para animación de la malla y el ecualizador -->
+        <canvas id="canvas"></canvas>
+
+        <!-- Panel de Control Flotante Inferior con Scroll Lateral -->
+        <div id="ui-container" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20 w-11/12 max-w-[440px] transition-all duration-300">
+            <div class="bg-black/85 backdrop-blur-md border border-purple-500/40 p-3 rounded-2xl shadow-[0_0_25px_rgba(255,0,255,0.25)] flex flex-col items-center w-full">
+                
+                <div class="flex items-center justify-between w-full mb-1.5 px-1">
+                    <h1 class="text-white font-bold text-xs tracking-wider uppercase retro-glow">Visualizer & Mallas 9:16</h1>
+                    <button id="toggleUiBtn" class="text-purple-300 hover:text-white text-[11px] bg-purple-950/60 px-2.5 py-0.5 rounded-md border border-purple-500/30 transition">
+                        Minimizar (Pantalla Libre)
+                    </button>
+                </div>
+
+                <!-- Barra con scroll lateral para alojar todos los controles cómodamente sin estorbar -->
+                <div id="scrollableControls" class="custom-scroll flex items-center gap-3 w-full overflow-x-auto pb-1.5 pt-1 px-1 whitespace-nowrap">
+                    
+                    <!-- Botón de Reproducción / Pausa de Audio Demo -->
+                    <button id="playBtn" class="flex-shrink-0 px-3.5 py-2 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-semibold rounded-xl shadow-lg transition transform active:scale-95 text-xs flex items-center gap-1.5">
+                        <svg id="playIcon" xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                        <span id="playText">Demo Synth</span>
+                    </button>
+
+                    <!-- Botón de Carga de Música Local -->
+                    <label class="flex-shrink-0 px-3.5 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-semibold rounded-xl shadow-lg transition transform active:scale-95 text-xs flex items-center gap-1.5 cursor-pointer">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
+                        <span>Cargar MP3</span>
+                        <input type="file" id="audioUpload" accept="audio/*" class="hidden">
+                    </label>
+
+                    <!-- Botón de Micrófono -->
+                    <button id="micBtn" class="flex-shrink-0 px-3 py-2 bg-gray-800/80 hover:bg-cyan-700 text-cyan-300 hover:text-white font-semibold rounded-xl border border-cyan-500/30 transition transform active:scale-95 text-xs flex items-center gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 14.23 14.47 16 12 16s-4.52-1.77-4.93-4.15c-.08-.49-.49-.85-.98-.85-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V20c0 .55.45 1 1 1s1-.45 1-1v-2.08c3.02-.43 5.42-2.78 5.91-5.78.1-.6-.39-1.14-1-1.14z"/></svg>
+                        Mic
+                    </button>
+
+                    <!-- Selector de Malla (4 Opciones) -->
+                    <div class="flex-shrink-0 flex items-center gap-1 bg-gray-900/90 px-2 py-1.5 rounded-xl border border-purple-500/30 text-xs text-gray-300">
+                        <span class="text-[10px] uppercase font-bold text-purple-300">Malla:</span>
+                        <select id="gridSelect" class="bg-black text-white px-2 py-1 rounded-lg border border-purple-500/40 text-xs focus:outline-none">
+                            <option value="0">1. Synthwave Grid (Original)</option>
+                            <option value="1">2. Cyberpunk Grid Futurista</option>
+                            <option value="2">3. Starfield Tunnel Cuántico</option>
+                            <option value="3">4. Matrix Digital Waves</option>
+                        </select>
+                    </div>
+
+                    <!-- Selector de Ecualizador (4 Opciones) -->
+                    <div class="flex-shrink-0 flex items-center gap-1 bg-gray-900/90 px-2 py-1.5 rounded-xl border border-purple-500/30 text-xs text-gray-300">
+                        <span class="text-[10px] uppercase font-bold text-cyan-300">Eq:</span>
+                        <select id="eqSelect" class="bg-black text-white px-2 py-1 rounded-lg border border-cyan-500/40 text-xs focus:outline-none">
+                            <option value="0">1. Espejo Segmentado (Ref)</option>
+                            <option value="1">2. Circular Radial Espectral</option>
+                            <option value="2">3. Cyber Pulse Blocks</option>
+                            <option value="3">4. Neon Spectrum Lines</option>
+                        </select>
+                    </div>
+
+                    <!-- Selector de Color Malla -->
+                    <div class="flex-shrink-0 flex items-center gap-1.5 bg-gray-900/90 px-2.5 py-1.5 rounded-xl border border-purple-500/30 text-xs text-gray-300">
+                        <span class="text-[10px] uppercase font-bold text-purple-300">Color Malla</span>
+                        <input type="color" id="gridColorPicker" value="#ff00ff" class="w-6 h-6 rounded border-0 cursor-pointer bg-transparent">
+                    </div>
+
+                    <!-- Selector de Color Ecualizador -->
+                    <div class="flex-shrink-0 flex items-center gap-1.5 bg-gray-900/90 px-2.5 py-1.5 rounded-xl border border-cyan-500/30 text-xs text-gray-300">
+                        <span class="text-[10px] uppercase font-bold text-cyan-300">Color Eq</span>
+                        <input type="color" id="eqColorPicker" value="#00ffff" class="w-6 h-6 rounded border-0 cursor-pointer bg-transparent">
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cuadro de mensajes personalizado -->
+    <div id="messageBox" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm hidden">
+        <div class="bg-gray-900 border border-purple-500/50 p-6 rounded-2xl max-w-sm text-center shadow-[0_0_30px_rgba(255,0,255,0.3)] mx-4">
+            <h3 id="msgTitle" class="text-white font-bold text-lg mb-2">Aviso</h3>
+            <p id="msgText" class="text-gray-300 text-sm mb-4">Texto de mensaje...</p>
+            <button id="msgCloseBtn" class="px-5 py-2 bg-gradient-to-r from-pink-600 to-purple-600 text-white font-semibold rounded-xl text-sm transition">Entendido</button>
+        </div>
+    </div>
+
+    <script>
+        // --- UTILIDAD DE MENSAJES ---
+        function showMessage(title, text) {
+            document.getElementById('msgTitle').innerText = title;
+            document.getElementById('msgText').innerText = text;
+            document.getElementById('messageBox').classList.remove('hidden');
+        }
+        document.getElementById('msgCloseBtn').addEventListener('click', () => {
+            document.getElementById('messageBox').classList.add('hidden');
+        });
+
+        // --- CONFIGURACIÓN DE CANVAS Y AUDIO API ---
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('app-container');
+
+        let width, height;
+        function resizeCanvas() {
+            width = canvas.width = container.clientWidth;
+            height = canvas.height = container.clientHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        let audioCtx, analyser, sourceNode = null;
+        let isPlaying = false;
+        let gridOffset = 0;
+        let demoBuffer = null;
+
+        // Controles de selección y color
+        let currentGridType = 0;
+        let currentEqType = 0;
+        let gridCustomColor = '#ff00ff';
+        let eqCustomColor = '#00ffff';
+
+        document.getElementById('gridSelect').addEventListener('change', (e) => {
+            currentGridType = parseInt(e.target.value);
+        });
+        document.getElementById('eqSelect').addEventListener('change', (e) => {
+            currentEqType = parseInt(e.target.value);
+        });
+        document.getElementById('gridColorPicker').addEventListener('input', (e) => {
+            gridCustomColor = e.target.value;
+        });
+        document.getElementById('eqColorPicker').addEventListener('input', (e) => {
+            eqCustomColor = e.target.value;
+        });
+
+        function initAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 128; 
+                analyser.smoothingTimeConstant = 0.15; // Respuesta ultrarrápida y agresiva
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        // --- GENERADOR DE MÚSICA DEMO SINTÉTICA ---
+        function createDemoSynthBuffer() {
+            const sampleRate = audioCtx.sampleRate;
+            const duration = 6.0;
+            const buffer = audioCtx.createBuffer(2, sampleRate * duration, sampleRate);
+            const left = buffer.getChannelData(0);
+            const right = buffer.getChannelData(1);
+
+            const notes = [110, 130.81, 164.81, 196, 220, 261.63, 329.63, 392];
+            const bpm = 125;
+            const beatInterval = (60 / bpm) * sampleRate;
+
+            for (let i = 0; i < buffer.length; i++) {
+                let t = i / sampleRate;
+                let beat = Math.floor(i / (beatInterval / 2));
+                let freq = notes[beat % notes.length];
+                
+                let bassEnv = Math.exp(-((i % beatInterval) / (sampleRate * 0.25)));
+                let bass = Math.sin(2 * Math.PI * 55 * t) * bassEnv * 0.75;
+
+                let leadEnv = Math.exp(-((i % (beatInterval / 2)) / (sampleRate * 0.15)));
+                let lead = (Math.sin(2 * Math.PI * freq * t) + 0.5 * Math.sin(2 * Math.PI * freq * 2 * t)) * leadEnv * 0.35;
+
+                let kick = 0;
+                let kickPos = i % beatInterval;
+                if (kickPos < sampleRate * 0.12) {
+                    let kEnv = 1 - (kickPos / (sampleRate * 0.12));
+                    let kFreq = 160 * Math.exp(-kickPos / (sampleRate * 0.035)) + 45;
+                    kick = Math.sin(2 * Math.PI * kFreq * t) * kEnv * 0.85;
+                }
+
+                let sample = (bass + lead + kick);
+                left[i] = sample;
+                right[i] = sample;
+            }
+            return buffer;
+        }
+
+        // --- CONTROLES DE AUDIO ---
+        const playBtn = document.getElementById('playBtn');
+        const playText = document.getElementById('playText');
+        
+        playBtn.addEventListener('click', async () => {
+            initAudioContext();
+
+            if (isPlaying) {
+                if (sourceNode) {
+                    sourceNode.stop();
+                    sourceNode.disconnect();
+                    sourceNode = null;
+                }
+                isPlaying = false;
+                playText.innerText = "Demo Synth";
+                return;
+            }
+
+            try {
+                if (!demoBuffer) {
+                    playText.innerText = "Cargando...";
+                    demoBuffer = createDemoSynthBuffer();
+                }
+
+                if (sourceNode) {
+                    sourceNode.stop();
+                    sourceNode.disconnect();
+                }
+
+                sourceNode = audioCtx.createBufferSource();
+                sourceNode.buffer = demoBuffer;
+                sourceNode.loop = true;
+                sourceNode.connect(analyser);
+                analyser.connect(audioCtx.destination);
+                sourceNode.start();
+
+                isPlaying = true;
+                playText.innerText = "Pausar";
+            } catch (e) {
+                console.error(e);
+                showMessage("Error de Audio", "No se pudo iniciar el audio demo.");
+            }
+        });
+
+        const micBtn = document.getElementById('micBtn');
+        micBtn.addEventListener('click', async () => {
+            initAudioContext();
+            try {
+                if (sourceNode) {
+                    sourceNode.stop();
+                    sourceNode.disconnect();
+                    sourceNode = null;
+                }
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                const micStreamSource = audioCtx.createMediaStreamSource(stream);
+                micStreamSource.connect(analyser);
+                isPlaying = true;
+                playText.innerText = "Pausar";
+                micBtn.classList.add('bg-cyan-600', 'text-white');
+            } catch (err) {
+                console.error(err);
+                showMessage("Acceso Denegado", "No se pudo acceder al micrófono.");
+            }
+        });
+
+        const audioUpload = document.getElementById('audioUpload');
+        audioUpload.addEventListener('change', function(e) {
+            initAudioContext();
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                audioCtx.decodeAudioData(evt.target.result, function(buffer) {
+                    if (sourceNode) {
+                        sourceNode.stop();
+                        sourceNode.disconnect();
+                    }
+                    sourceNode = audioCtx.createBufferSource();
+                    sourceNode.buffer = buffer;
+                    sourceNode.loop = true;
+                    sourceNode.connect(analyser);
+                    analyser.connect(audioCtx.destination);
+                    sourceNode.start();
+                    isPlaying = true;
+                    playText.innerText = "Pausar";
+                    showMessage("Música Cargada", "Reproduciendo tu archivo correctamente.");
+                }, function(err) {
+                    console.error(err);
+                    showMessage("Error", "Formato de audio no compatible.");
+                });
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        // --- RENDERIZADO VISUAL CON 4 MALLAS Y 4 ECUALIZADORES ---
+        const frequencyData = new Uint8Array(64);
+        const timeData = new Uint8Array(128);
+        const smoothedHeights = new Array(64).fill(0);
+
+        function draw() {
+            requestAnimationFrame(draw);
+
+            ctx.fillStyle = '#030307';
+            ctx.fillRect(0, 0, width, height);
+
+            let bassEnergy = 0;
+            if (analyser && isPlaying) {
+                analyser.getByteFrequencyData(frequencyData);
+                analyser.getByteTimeDomainData(timeData);
+                for (let i = 0; i < 6; i++) {
+                    bassEnergy += frequencyData[i];
+                }
+                bassEnergy = bassEnergy / 6 / 255;
+            } else {
+                let time = Date.now() * 0.003;
+                for (let i = 0; i < frequencyData.length; i++) {
+                    frequencyData[i] = Math.abs(Math.sin(time + i * 0.15)) * 180 + 20;
+                }
+                for (let i = 0; i < timeData.length; i++) {
+                    timeData[i] = 128 + Math.sin(time * 2.5 + i * 0.1) * 50;
+                }
+                bassEnergy = Math.sin(time * 3) * 0.25 + 0.25;
+            }
+
+            // ==========================================
+            // RENDERIZADO DE MALLAS (4 OPCIONES)
+            // ==========================================
+            ctx.save();
+            let horizonY = height * 0.60;
+            let speedMultiplier = 1.2 + Math.pow(bassEnergy, 1.8) * 14.0;
+            gridOffset = (gridOffset + speedMultiplier) % 40;
+
+            if (currentGridType === 0) {
+                // 1. Synthwave Grid Original
+                let gridGradient = ctx.createLinearGradient(0, horizonY, 0, height);
+                gridGradient.addColorStop(0, gridCustomColor);
+                gridGradient.addColorStop(1, '#00ffff');
+                ctx.strokeStyle = gridGradient;
+                ctx.lineWidth = 1.5;
+
+                for (let y = horizonY; y < height; y += (y - horizonY) * 0.09 + 3.0) {
+                    let adjustedY = y + gridOffset * 0.25;
+                    if (adjustedY > horizonY && adjustedY < height) {
+                        ctx.beginPath();
+                        ctx.moveTo(0, adjustedY);
+                        ctx.lineTo(width, adjustedY);
+                        ctx.stroke();
+                    }
+                }
+                let centerX = width / 2;
+                for (let i = -18; i <= 18; i++) {
+                    let bottomX = centerX + i * (width / 5);
+                    ctx.beginPath();
+                    ctx.moveTo(centerX, horizonY);
+                    ctx.lineTo(bottomX, height);
+                    ctx.stroke();
+                }
+            } else if (currentGridType === 1) {
+                // 2. Cyberpunk Grid Futurista (Líneas cruzadas con pulso eléctrico)
+                ctx.strokeStyle = gridCustomColor;
+                ctx.lineWidth = 1.5;
+                let step = 35;
+                let offsetZ = gridOffset * 0.8;
+                for (let y = horizonY; y < height; y += 18) {
+                    let py = y + (offsetZ % 18);
+                    ctx.globalAlpha = (py - horizonY) / (height - horizonY);
+                    ctx.beginPath();
+                    ctx.moveTo(0, py);
+                    ctx.lineTo(width, py);
+                    ctx.stroke();
+                }
+                ctx.globalAlpha = 0.6;
+                for (let x = 0; x < width; x += step) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, horizonY);
+                    ctx.lineTo(x + (x - width/2) * 0.8, height);
+                    ctx.stroke();
+                }
+            } else if (currentGridType === 2) {
+                // 3. Starfield Tunnel Cuántico (Anillos concéntricos hacia el fondo)
+                let centerX = width / 2;
+                let centerY = horizonY;
+                let numRings = 12;
+                let maxRadius = width * 0.8;
+                let ringOffset = (gridOffset * 2) % (maxRadius / numRings);
+
+                for (let i = 0; i < numRings; i++) {
+                    let r = i * (maxRadius / numRings) + ringOffset + bassEnergy * 25;
+                    if (r > 10 && r < maxRadius) {
+                        ctx.strokeStyle = gridCustomColor;
+                        ctx.lineWidth = 1.2 + (i / numRings) * 2;
+                        ctx.globalAlpha = r / maxRadius;
+                        ctx.beginPath();
+                        ctx.ellipse(centerX, centerY, r, r * 0.45, 0, 0, Math.PI * 2);
+                        ctx.stroke();
+                    }
+                }
+            } else if (currentGridType === 3) {
+                // 4. Matrix Digital Waves (Ondas sinusoidales de suelo digital)
+                ctx.strokeStyle = gridCustomColor;
+                ctx.lineWidth = 2.0;
+                let numWaves = 8;
+                for (let w = 0; w < numWaves; w++) {
+                    let startY = horizonY + w * ((height - horizonY) / numWaves);
+                    ctx.beginPath();
+                    for (let x = 0; x < width; x += 10) {
+                        let y = startY + Math.sin(x * 0.02 + gridOffset * 0.1 + w) * (10 + bassEnergy * 25);
+                        if (x === 0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                    }
+                    ctx.globalAlpha = 0.3 + (w / numWaves) * 0.7;
+                    ctx.stroke();
+                }
+            }
+            ctx.restore();
+
+            // ==========================================
+            // RENDERIZADO DE ECUALIZADORES (4 OPCIONES)
+            // ==========================================
+            ctx.save();
+            let eqCenterX = width / 2;
+            let eqCenterY = height * 0.35;
+            let scalePulse = 1 + bassEnergy * 0.22;
+
+            if (currentEqType === 0) {
+                // 1. Espejo Segmentado (Ref del video original con arcoíris original)
+                ctx.translate(eqCenterX, eqCenterY);
+                ctx.scale(scalePulse, scalePulse);
+                ctx.translate(-eqCenterX, -eqCenterY);
+
+                let halfBars = 16;
+                let barWidth = Math.max(3, Math.min(width * 0.02, 8));
+                let barGap = barWidth * 0.6;
+
+                // Definir colores del arcoíris dinámico por posición de barra
+                const rainbowColors = [
+                    '#ef4444', '#f97316', '#facc15', '#4ade80', 
+                    '#06b6d4', '#3b82f6', '#a855f7', '#ec4899'
+                ];
+
+                for (let i = 0; i < halfBars; i++) {
+                    let dataIndex = Math.floor((i / halfBars) * (frequencyData.length / 2.0));
+                    let rawVal = frequencyData[dataIndex] || 10;
+                    let targetHeight = Math.pow(rawVal / 255, 1.35) * 120;
+
+                    if (targetHeight > smoothedHeights[i]) smoothedHeights[i] = targetHeight;
+                    else smoothedHeights[i] += (targetHeight - smoothedHeights[i]) * 0.55;
+
+                    let barHeight = smoothedHeights[i];
+                    let leftX = eqCenterX - ((i + 1) * (barWidth + barGap));
+                    let rightX = eqCenterX + (i * (barWidth + barGap));
+
+                    let colorIndex = Math.floor((i / halfBars) * rainbowColors.length);
+                    let barColor = rainbowColors[colorIndex % rainbowColors.length];
+
+                    ctx.fillStyle = barColor;
+                    ctx.shadowColor = barColor;
+                    ctx.shadowBlur = 10;
+
+                    let segmentHeight = 3.5;
+                    let segmentGap = 2.0;
+                    let numSegments = Math.floor(barHeight / (segmentHeight + segmentGap));
+
+                    for (let s = 0; s < numSegments; s++) {
+                        let segYOffset = s * (segmentHeight + segmentGap);
+                        ctx.fillRect(leftX, eqCenterY - segYOffset - segmentHeight, barWidth, segmentHeight);
+                        ctx.fillRect(leftX, eqCenterY + segYOffset, barWidth, segmentHeight);
+                        ctx.fillRect(rightX, eqCenterY - segYOffset - segmentHeight, barWidth, segmentHeight);
+                        ctx.fillRect(rightX, eqCenterY + segYOffset, barWidth, segmentHeight);
+                    }
+
+                    if (numSegments > 0) {
+                        ctx.fillStyle = '#ffffff';
+                        let peakOffset = numSegments * (segmentHeight + segmentGap);
+                        ctx.fillRect(leftX, eqCenterY - peakOffset - 1.5, barWidth, 1.5);
+                        ctx.fillRect(leftX, eqCenterY + peakOffset, barWidth, 1.5);
+                        ctx.fillRect(rightX, eqCenterY - peakOffset - 1.5, barWidth, 1.5);
+                        ctx.fillRect(rightX, eqCenterY + peakOffset, barWidth, 1.5);
+                    }
+                }
+
+                // Onda Sinusoidal Blanca
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 3.0;
+                ctx.shadowColor = '#ffffff';
+                ctx.shadowBlur = 15;
+                ctx.beginPath();
+                let waveWidth = (halfBars * 2) * (barWidth + barGap) * 1.15;
+                let waveStartX = eqCenterX - (waveWidth / 2);
+                let sliceWidth = waveWidth / timeData.length;
+                let currentX = waveStartX;
+
+                for (let i = 0; i < timeData.length; i++) {
+                    let v = timeData[i] / 128.0;
+                    let y = eqCenterY + (v - 1) * (38 + bassEnergy * 20);
+                    if (i === 0) ctx.moveTo(currentX, y);
+                    else ctx.lineTo(currentX, y);
+                    currentX += sliceWidth;
+                }
+                ctx.stroke();
+
+            } else if (currentEqType === 1) {
+                // 2. Circular Radial Espectral
+                let radius = 70 + bassEnergy * 35;
+                ctx.translate(eqCenterX, eqCenterY);
+                let numBars = 32;
+                let angleStep = (Math.PI * 2) / numBars;
+
+                for (let i = 0; i < numBars; i++) {
+                    let dataIndex = Math.floor((i / numBars) * frequencyData.length);
+                    let val = (frequencyData[dataIndex] / 255) * 90;
+                    let angle = i * angleStep;
+
+                    let x1 = Math.cos(angle) * radius;
+                    let y1 = Math.sin(angle) * radius;
+                    let x2 = Math.cos(angle) * (radius + val + 15);
+                    let y2 = Math.sin(angle) * (radius + val + 15);
+
+                    ctx.strokeStyle = eqCustomColor;
+                    ctx.lineWidth = 4;
+                    ctx.shadowColor = eqCustomColor;
+                    ctx.shadowBlur = 12;
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.stroke();
+                }
+
+            } else if (currentEqType === 2) {
+                // 3. Cyber Pulse Blocks (Bloques sólidos enérgicos)
+                let numBars = 20;
+                let barW = 10;
+                let gap = 6;
+                let totalW = numBars * (barW + gap);
+                let startX = eqCenterX - (totalW / 2);
+
+                for (let i = 0; i < numBars; i++) {
+                    let dataIndex = Math.floor((i / numBars) * frequencyData.length);
+                    let val = (frequencyData[dataIndex] / 255) * 110;
+                    let x = startX + i * (barW + gap);
+                    let h = Math.max(8, val + bassEnergy * 40);
+
+                    ctx.fillStyle = eqCustomColor;
+                    ctx.shadowColor = eqCustomColor;
+                    ctx.shadowBlur = 15;
+                    ctx.fillRect(x, eqCenterY - (h / 2), barW, h);
+                }
+
+            } else if (currentEqType === 3) {
+                // 4. Neon Spectrum Lines (Líneas superpuestas fluidas)
+                ctx.lineWidth = 3.5;
+                ctx.shadowColor = eqCustomColor;
+                ctx.shadowBlur = 15;
+                ctx.strokeStyle = eqCustomColor;
+
+                ctx.beginPath();
+                let sliceW = (width * 0.8) / frequencyData.length;
+                let startX = width * 0.1;
+
+                for (let i = 0; i < frequencyData.length; i++) {
+                    let v = (frequencyData[i] / 255) * 90;
+                    let x = startX + i * sliceW;
+                    let y = eqCenterY - v + Math.sin(i * 0.3 + gridOffset * 0.2) * (15 + bassEnergy * 20);
+
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        requestAnimationFrame(draw);
+
+        // Control para minimizar / restaurar menú inferior (Pantalla Libre)
+        const toggleUiBtn = document.getElementById('toggleUiBtn');
+        const scrollableControls = document.getElementById('scrollableControls');
+        let uiMinimized = false;
+
+        toggleUiBtn.addEventListener('click', () => {
+            uiMinimized = !uiMinimized;
+            if (uiMinimized) {
+                scrollableControls.style.display = 'none';
+                toggleUiBtn.innerText = "Restaurar Controles";
+            } else {
+                scrollableControls.style.display = 'flex';
+                toggleUiBtn.innerText = "Minimizar (Pantalla Libre)";
+            }
+        });
+    </script>
+</body>
+</html>
