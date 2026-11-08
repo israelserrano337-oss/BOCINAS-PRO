@@ -13,7 +13,7 @@
     
     <!-- Icon for home screen -->
     <link rel="apple-touch-icon" href="https://img.icons8.com/nolan/256/equalizer.png">
-    <link rel="manifest" href="/manifest.json">
+    <link rel="manifest" href="manifest.json">
 
     <title>NEON VJ ENGINE - Synthwave Studio & 3D Visualizer</title>
     <meta name="description" content="Estudio visual VJ 9:16 con 35 escenas 3D reactivas, mallas synthwave personalizables, ecualizadores dinámicos, audio reactivo y exportación en alta definición optimizado para iOS.">
@@ -3259,7 +3259,12 @@
     // ========================================================
     // IOS HOME SCREEN INSTALLATION HELPERS
     // ========================================================
-    const APP_PUBLIC_URL = 'https://ais-pre-jgj2mcabzqguny4u27vdzv-457611415909.europe-west3.run.app';
+    const getAppUrl = () => {
+        if (window.location && window.location.href && !window.location.href.startsWith('about:')) {
+            return window.location.href.split('#')[0].split('?')[0];
+        }
+        return 'https://ais-pre-jgj2mcabzqguny4u27vdzv-457611415909.europe-west3.run.app';
+    };
 
     function openIosInstallModal() {
         const modal = document.getElementById('iosInstallModal');
@@ -3272,7 +3277,7 @@
     }
 
     async function shareAppUrl() {
-        const urlToShare = APP_PUBLIC_URL;
+        const urlToShare = getAppUrl();
         if (navigator.share) {
             try {
                 await navigator.share({
@@ -3289,10 +3294,10 @@
     }
 
     function copyAppUrl() {
-        const urlToShare = APP_PUBLIC_URL;
+        const urlToShare = getAppUrl();
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(urlToShare).then(() => {
-                showMessage("Enlace Copiado", "El enlace público de la aplicación se ha copiado al portapapeles. Ábrelo en Safari en tu iPhone 15 para añadirlo a tu Pantalla de Inicio.");
+                showMessage("Enlace Copiado", "El enlace de tu aplicación se ha copiado al portapapeles. Ábrelo en Safari en tu iPhone 15 para añadirlo a tu Pantalla de Inicio.");
             }).catch(() => {
                 prompt("Copia este enlace para abrirlo en Safari en tu iPhone:", urlToShare);
             });
