@@ -157,11 +157,14 @@
                     <i class="fa-solid font-black text-white text-xs">VJ</i>
                 </div>
                 <div>
-                    <h1 class="text-xs font-black tracking-widest text-cyan-400 font-['Orbitron'] flex items-center gap-2">
+                    <h1 class="text-xs font-black tracking-widest text-cyan-400 font-['Orbitron'] flex items-center gap-1.5">
                         NEON VJ ENGINE
-                        <span class="text-[8px] px-1.5 py-0.5 rounded bg-pink-500/20 text-pink-400 border border-pink-500/30">35 SCENES</span>
+                        <span class="text-[8px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold font-mono">v2.5</span>
                     </h1>
-                    <p class="text-[9px] text-slate-400 tracking-wider">ULTIMATE 3D & ECLIPSE VJ STUDIO</p>
+                    <p class="text-[9px] text-slate-400 tracking-wider flex items-center gap-1.5">
+                        <span>ULTIMATE 3D & ECLIPSE VJ</span>
+                        <span class="text-[8px] px-1 py-0.2 rounded bg-pink-500/20 text-pink-400 border border-pink-500/30">35 SCENES</span>
+                    </p>
                 </div>
             </div>
             <div class="flex gap-1.5 items-center">
@@ -480,14 +483,22 @@
             <div class="absolute bottom-2 left-2 w-3 h-3 border-b-2 border-l-2 border-cyan-400/60 pointer-events-none z-10"></div>
             <div class="absolute bottom-2 right-2 w-3 h-3 border-b-2 border-r-2 border-cyan-400/60 pointer-events-none z-10"></div>
 
-            <!-- Active HUD Overlay Tag -->
-            <div class="absolute top-4 left-4 right-4 flex items-center justify-between pointer-events-none z-10">
-                <div class="bg-black/70 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 flex items-center gap-2 shadow-lg">
+            <!-- Active HUD Overlay Tag with Version Badge -->
+            <div class="absolute top-4 left-3 right-3 flex items-center justify-between pointer-events-none z-10" style="top: calc(env(safe-area-inset-top, 0px) + 12px);">
+                <div class="bg-black/75 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 flex items-center gap-2 shadow-lg">
                     <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_#00f5ff]"></span>
-                    <span id="hudSceneTag" class="text-[10px] font-mono font-bold tracking-widest text-slate-200 drop-shadow-md">3D 01 • REJILLA INFINITA</span>
+                    <span id="hudSceneTag" class="text-[9px] sm:text-[10px] font-mono font-bold tracking-widest text-slate-200 drop-shadow-md">3D 01 • REJILLA INFINITA</span>
                 </div>
-                <div id="recIndicator" class="hidden bg-rose-600/90 backdrop-blur-md px-3 py-1 rounded-full border border-rose-400 flex items-center gap-1.5 text-white font-bold text-[10px] animate-rec shadow-[0_0_15px_#e11d48]">
-                    <i class="fa-solid fa-circle text-[8px]"></i> GRABANDO 9:16
+                
+                <div class="flex items-center gap-1.5">
+                    <!-- Version Badge -->
+                    <div class="bg-black/80 backdrop-blur-md px-2.5 py-1 rounded-full border border-cyan-400/40 flex items-center gap-1.5 shadow-[0_0_12px_rgba(0,245,255,0.25)]">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span class="text-[9px] font-mono font-black text-cyan-300 tracking-wider">v2.5 iOS</span>
+                    </div>
+                    <div id="recIndicator" class="hidden bg-rose-600/90 backdrop-blur-md px-3 py-1 rounded-full border border-rose-400 flex items-center gap-1.5 text-white font-bold text-[9px] animate-rec shadow-[0_0_15px_#e11d48]">
+                        <i class="fa-solid fa-circle text-[7px]"></i> GRABANDO 9:16
+                    </div>
                 </div>
             </div>
 
@@ -497,6 +508,7 @@
                     <div class="flex items-center justify-between w-full mb-1.5 px-1">
                         <span class="text-white font-bold text-[10px] tracking-wider uppercase font-['Orbitron'] retro-glow flex items-center gap-1.5">
                             <i class="fa-solid fa-wave-square text-cyan-400"></i> Mallas & EQ 9:16
+                            <span class="text-[8px] font-mono px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold">v2.5</span>
                         </span>
                         <button id="toggleQuickUiBtn" onclick="toggleQuickUi()" class="text-purple-300 hover:text-white text-[9px] bg-purple-950/60 px-2 py-0.5 rounded border border-purple-500/30 transition">
                             Minimizar (Pantalla Libre)
