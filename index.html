@@ -159,7 +159,7 @@
                 <div>
                     <h1 class="text-xs font-black tracking-widest text-cyan-400 font-['Orbitron'] flex items-center gap-1.5">
                         NEON VJ ENGINE
-                        <span class="text-[8px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold font-mono">v2.5</span>
+                        <span class="text-[8px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold font-mono">v2.6</span>
                     </h1>
                     <p class="text-[9px] text-slate-400 tracking-wider flex items-center gap-1.5">
                         <span>ULTIMATE 3D & ECLIPSE VJ</span>
@@ -211,10 +211,33 @@
 
                 <div class="mt-2 mb-3" id="audioTimelineContainer" style="display: none;">
                     <div class="flex justify-between items-center text-[9px] text-slate-400 mb-1">
-                        <span id="lblAudioTime">0:00</span>
-                        <span id="lblAudioDuration">0:00</span>
+                        <span id="lblAudioTime" class="font-mono text-cyan-300 font-bold">0:00</span>
+                        <div id="workerAnalysisBadge" class="hidden px-2 py-0.5 rounded-full bg-cyan-950/70 border border-cyan-500/40 text-[8px] font-mono text-cyan-300 flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
+                            <span id="workerBpmText">Detectando BPM...</span>
+                        </div>
+                        <span id="lblAudioDuration" class="font-mono text-slate-400">0:00</span>
                     </div>
-                    <input type="range" id="rngAudioTime" min="0" max="100" step="0.1" value="0" class="w-full" oninput="seekAudio(this.value)">
+
+                    <!-- Interactive Waveform Canvas (Non-blocking Web Worker) -->
+                    <div id="waveformWrapper" class="relative w-full h-11 bg-black/80 rounded-lg overflow-hidden border border-slate-800 cursor-pointer shadow-inner touch-none" onclick="handleWaveformClick(event)">
+                        <canvas id="waveformCanvas" class="w-full h-full block"></canvas>
+                        <div id="waveformPlayhead" class="absolute top-0 bottom-0 w-0.5 bg-white shadow-[0_0_8px_#fff] pointer-events-none transition-all duration-75" style="left: 0%;"></div>
+                        <div id="dropMarkersContainer" class="absolute inset-0 pointer-events-none"></div>
+                    </div>
+
+                    <!-- Quick Drop Jump & Rhythm Sync Controls -->
+                    <div class="flex items-center justify-between mt-1 text-[8px] text-slate-400">
+                        <button type="button" id="btnJumpDrop" onclick="jumpToNextDrop()" class="text-pink-400 hover:text-white flex items-center gap-1 font-mono transition" style="display: none;">
+                            <i class="fa-solid fa-bolt text-[7px] text-yellow-400"></i>
+                            <span id="lblJumpDrop">Ir al Drop</span>
+                        </button>
+                        <label class="flex items-center gap-1.5 cursor-pointer ml-auto text-slate-300 hover:text-white">
+                            <input type="checkbox" id="chkAutoBpmSync" checked onchange="toggleAutoBpmSync(this.checked)" class="accent-cyan-400 w-3 h-3">
+                            <span>Auto-Sync VJ al Ritmo</span>
+                        </label>
+                    </div>
+                    <input type="range" id="rngAudioTime" min="0" max="100" step="0.1" value="0" class="hidden" oninput="seekAudio(this.value)">
                 </div>
 
                 <!-- Frequency VU Meters -->
@@ -494,7 +517,7 @@
                     <!-- Version Badge -->
                     <div class="bg-black/80 backdrop-blur-md px-2.5 py-1 rounded-full border border-cyan-400/40 flex items-center gap-1.5 shadow-[0_0_12px_rgba(0,245,255,0.25)]">
                         <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                        <span class="text-[9px] font-mono font-black text-cyan-300 tracking-wider">v2.5 iOS</span>
+                        <span class="text-[9px] font-mono font-black text-cyan-300 tracking-wider">v2.6 iOS Pro</span>
                     </div>
                     <div id="recIndicator" class="hidden bg-rose-600/90 backdrop-blur-md px-3 py-1 rounded-full border border-rose-400 flex items-center gap-1.5 text-white font-bold text-[9px] animate-rec shadow-[0_0_15px_#e11d48]">
                         <i class="fa-solid fa-circle text-[7px]"></i> GRABANDO 9:16
@@ -508,7 +531,7 @@
                     <div class="flex items-center justify-between w-full mb-1.5 px-1">
                         <span class="text-white font-bold text-[10px] tracking-wider uppercase font-['Orbitron'] retro-glow flex items-center gap-1.5">
                             <i class="fa-solid fa-wave-square text-cyan-400"></i> Mallas & EQ 9:16
-                            <span class="text-[8px] font-mono px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold">v2.5</span>
+                            <span class="text-[8px] font-mono px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold">v2.6</span>
                         </span>
                         <button id="toggleQuickUiBtn" onclick="toggleQuickUi()" class="text-purple-300 hover:text-white text-[9px] bg-purple-950/60 px-2 py-0.5 rounded border border-purple-500/30 transition">
                             Minimizar (Pantalla Libre)
@@ -656,6 +679,15 @@
     let isPlaying = false, isDemoBeat = false, demoInterval = null;
     let audioStartTime = 0, audioPausedTime = 0, audioDuration = 0;
 
+    // WEB WORKER & RHYTHM ANALYSIS STATE
+    let audioWorker = null;
+    let isAnalyzingAudio = false;
+    let detectedBpm = 0;
+    let detectedDrops = [];
+    let waveformPeaks = [];
+    let autoBpmSyncEnabled = true;
+    let lastTriggeredDropIdx = -1;
+
     // VJ CONTROLS
     let currentSceneIdx = 0;
     let t3Objs = [];
@@ -737,6 +769,7 @@
         initMasterCanvas();
         initThreeEngine();
         initAudioEngine();
+        initAudioWorker();
         renderCatalogUI('all');
         loadScene(0);
         
@@ -844,6 +877,7 @@
         isSynthDemo = true;
         isDemoBeat = false;
         playAudioBuffer(0);
+        triggerWorkerAudioAnalysis(synthDemoBuffer);
 
         document.getElementById('aFileName').innerText = "Synthwave 125 BPM";
         document.getElementById('audioStatus').innerText = "Demo Synth";
@@ -941,7 +975,8 @@
                     audioBuf = decodedBuffer;
                     document.getElementById('audioStatus').innerText = "Cargado";
                     playAudioBuffer(0);
-                    showMessage("Música Cargada", `Reproduciendo ${file.name} con éxito en iOS.`);
+                    triggerWorkerAudioAnalysis(decodedBuffer);
+                    showMessage("Música Cargada", `Reproduciendo ${file.name} con éxito en iOS. Analizando ritmo en segundo plano...`);
                 },
                 function(err) {
                     console.error("Error decodificando audio", err);
@@ -1010,7 +1045,7 @@
     function seekAudio(val) {
         if (!audioBuf) return;
         const targetTime = (val / 100) * audioDuration;
-        if (isPlaying && !isDemoBeat && !isSynthDemo) {
+        if (isPlaying && !isDemoBeat) {
             playAudioBuffer(targetTime);
         } else {
             audioPausedTime = targetTime;
@@ -2409,11 +2444,14 @@
         lastTime = now;
         const elapsed = now / 1000;
 
-        if (isPlaying && audioBuf && !isDemoBeat && !isSynthDemo) {
-            let curr = (audioCtx.currentTime - audioStartTime) % audioDuration;
+        if (isPlaying && audioBuf) {
+            let curr = (audioCtx.currentTime - audioStartTime) % (audioDuration || 1);
             if (curr < 0) curr = 0;
             document.getElementById('lblAudioTime').innerText = formatTime(curr);
-            document.getElementById('rngAudioTime').value = (curr / audioDuration) * 100;
+            const rng = document.getElementById('rngAudioTime');
+            if (rng) rng.value = (curr / (audioDuration || 1)) * 100;
+            updateWaveformPlayhead(curr / (audioDuration || 1));
+            checkDropCrossing(curr);
         }
 
         // 1. Process Audio
@@ -3050,6 +3088,7 @@
         }
 
         updateExportEstimate();
+        updateExportDropSuggestions();
         modal.classList.remove('hidden');
     }
 
@@ -3317,6 +3356,418 @@
             prompt("Copia este enlace para abrirlo en Safari en tu iPhone:", urlToShare);
         }
     }
+
+    // ========================================================
+    // NON-BLOCKING WEB WORKER: RHYTHM ANALYSIS & PEAK EXTRACTION
+    // ========================================================
+    function initAudioWorker() {
+        if (audioWorker) return;
+        if (typeof Worker === 'undefined') {
+            console.warn("Web Workers not supported in this environment");
+            return;
+        }
+
+        const workerSource = [
+            'self.onmessage = function(e) {',
+            '    var msg = e.data;',
+            '    if (msg.type === "ANALYZE_AUDIO") {',
+            '        var channelData = msg.channelData;',
+            '        var sampleRate = msg.sampleRate || 44100;',
+            '        var duration = msg.duration || (channelData ? channelData.length / sampleRate : 0);',
+            '        var numSamples = channelData ? channelData.length : 0;',
+            '        if (!numSamples || numSamples === 0) {',
+            '            self.postMessage({ type: "ANALYSIS_COMPLETE", bpm: 125, drops: [], peaks: [] });',
+            '            return;',
+            '        }',
+            '        // 1. Min/Max Waveform Peaks (320 bins)',
+            '        var numBins = 320;',
+            '        var binSize = Math.max(1, Math.floor(numSamples / numBins));',
+            '        var peaks = [];',
+            '        var globalMax = 0.001;',
+            '        for (var i = 0; i < numBins; i++) {',
+            '            var start = i * binSize;',
+            '            var end = Math.min(start + binSize, numSamples);',
+            '            var min = 0;',
+            '            var max = 0;',
+            '            var step = Math.max(1, Math.floor((end - start) / 80));',
+            '            for (var j = start; j < end; j += step) {',
+            '                var val = channelData[j];',
+            '                if (val > max) max = val;',
+            '                if (val < min) min = val;',
+            '            }',
+            '            peaks.push({ min: min, max: max });',
+            '            if (max > globalMax) globalMax = max;',
+            '            if (-min > globalMax) globalMax = -min;',
+            '        }',
+            '        var normPeaks = peaks.map(function(p) {',
+            '            return {',
+            '                min: Math.max(-1, Math.min(0, p.min / globalMax)),',
+            '                max: Math.max(0, Math.min(1, p.max / globalMax))',
+            '            };',
+            '        });',
+            '        // 2. Fast Downsampled Energy Envelope at 200 Hz',
+            '        var envRate = 200;',
+            '        var envStep = Math.max(1, Math.floor(sampleRate / envRate));',
+            '        var envLen = Math.floor(numSamples / envStep);',
+            '        var energyEnv = new Float32Array(envLen);',
+            '        for (var eIdx = 0; eIdx < envLen; eIdx++) {',
+            '            var eStart = eIdx * envStep;',
+            '            var eEnd = Math.min(eStart + envStep, numSamples);',
+            '            var sumSq = 0;',
+            '            for (var sIdx = eStart; sIdx < eEnd; sIdx++) {',
+            '                var s = channelData[sIdx];',
+            '                sumSq += s * s;',
+            '            }',
+            '            energyEnv[eIdx] = Math.sqrt(sumSq / (eEnd - eStart || 1));',
+            '        }',
+            '        // 3. Energy Flux / Onset Envelope',
+            '        var onsets = new Float32Array(envLen);',
+            '        for (var oIdx = 1; oIdx < envLen; oIdx++) {',
+            '            var diff = energyEnv[oIdx] - energyEnv[oIdx - 1];',
+            '            onsets[oIdx] = diff > 0 ? diff : 0;',
+            '        }',
+            '        // 4. BPM Estimation via Autocorrelation (Range 72 - 180 BPM)',
+            '        var minLag = Math.floor((60 * envRate) / 180);',
+            '        var maxLag = Math.floor((60 * envRate) / 72);',
+            '        var corrWindow = Math.min(envLen, envRate * 90);',
+            '        var bestLag = 0;',
+            '        var maxCorr = -1;',
+            '        if (corrWindow > maxLag + 20) {',
+            '            for (var lag = minLag; lag <= maxLag; lag++) {',
+            '                var corr = 0;',
+            '                for (var cIdx = 0; cIdx < corrWindow - lag; cIdx++) {',
+            '                    corr += onsets[cIdx] * onsets[cIdx + lag];',
+            '                }',
+            '                if (corr > maxCorr) {',
+            '                    maxCorr = corr;',
+            '                    bestLag = lag;',
+            '                }',
+            '            }',
+            '        }',
+            '        var rawBpm = bestLag > 0 ? Math.round((60 * envRate) / bestLag) : 125;',
+            '        if (rawBpm < 70) rawBpm *= 2;',
+            '        if (rawBpm > 185) rawBpm = Math.round(rawBpm / 2);',
+            '        var finalBpm = rawBpm || 125;',
+            '        // 5. Musical Drop / Climax Transient Detection',
+            '        var drops = [];',
+            '        if (duration >= 14) {',
+            '            var windowSec = 4;',
+            '            var windowSamples = windowSec * envRate;',
+            '            var minDropSpacingSec = 10;',
+            '            var minDropSpacingSamples = minDropSpacingSec * envRate;',
+            '            var lastDropSample = -minDropSpacingSamples;',
+            '            var totalEnergy = 0;',
+            '            for (var tIdx = 0; tIdx < envLen; tIdx++) totalEnergy += energyEnv[tIdx];',
+            '            var avgGlobalEnergy = totalEnergy / (envLen || 1);',
+            '            for (var dIdx = windowSamples; dIdx < envLen - envRate; dIdx++) {',
+            '                var currSec = dIdx / envRate;',
+            '                if (currSec < 10 || currSec > duration - 6) continue;',
+            '                if (dIdx - lastDropSample < minDropSpacingSamples) continue;',
+            '                var localSum = 0;',
+            '                for (var k = dIdx - windowSamples; k < dIdx; k++) {',
+            '                    localSum += energyEnv[k];',
+            '                }',
+            '                var localAvg = localSum / windowSamples;',
+            '                var instantEnergy = energyEnv[dIdx];',
+            '                var onsetStrength = onsets[dIdx];',
+            '                if (instantEnergy > 1.3 * localAvg && instantEnergy > 1.1 * avgGlobalEnergy && onsetStrength > 0.04) {',
+            '                    drops.push(Math.round(currSec * 10) / 10);',
+            '                    lastDropSample = dIdx;',
+            '                    if (drops.length >= 6) break;',
+            '                }',
+            '            }',
+            '        }',
+            '        if (drops.length === 0) {',
+            '            if (duration > 20) {',
+            '                drops.push(Math.round(duration * 0.28 * 10) / 10);',
+            '                if (duration > 45) drops.push(Math.round(duration * 0.65 * 10) / 10);',
+            '            } else if (duration > 4) {',
+            '                drops.push(Math.round(duration * 0.5 * 10) / 10);',
+            '            }',
+            '        }',
+            '        self.postMessage({',
+            '            type: "ANALYSIS_COMPLETE",',
+            '            bpm: finalBpm;',
+            '            drops: drops,',
+            '            peaks: normPeaks,',
+            '            duration: duration',
+            '        });',
+            '    }',
+            '};'
+        ].join('\n');
+
+        // Fix semicolon in object literal above: replace with comma
+        const sanitizedWorkerSource = workerSource.replace('bpm: finalBpm;', 'bpm: finalBpm,');
+
+        try {
+            const blob = new Blob([sanitizedWorkerSource], { type: 'application/javascript' });
+            const workerUrl = URL.createObjectURL(blob);
+            audioWorker = new Worker(workerUrl);
+
+            audioWorker.onmessage = function(e) {
+                const data = e.data;
+                if (data && data.type === 'ANALYSIS_COMPLETE') {
+                    isAnalyzingAudio = false;
+                    detectedBpm = data.bpm || 125;
+                    detectedDrops = data.drops || [];
+                    waveformPeaks = data.peaks || [];
+
+                    const badge = document.getElementById('workerAnalysisBadge');
+                    const bpmText = document.getElementById('workerBpmText');
+                    if (badge) badge.classList.remove('hidden');
+                    if (bpmText) {
+                        const dropsCount = detectedDrops.length;
+                        bpmText.innerHTML = 'BPM <b class="text-white">' + detectedBpm + '</b> · <span class="text-amber-400">⚡ ' + dropsCount + (dropsCount === 1 ? ' Drop' : ' Drops') + '</span>';
+                    }
+
+                    renderWaveformCanvas();
+                    renderDropMarkers();
+                    updateDropJumpButton();
+                    updateExportDropSuggestions();
+
+                    if (autoBpmSyncEnabled && detectedBpm > 0) {
+                        applyBpmSync(detectedBpm);
+                    }
+                }
+            };
+
+            audioWorker.onerror = function(err) {
+                console.error("Audio Web Worker error:", err);
+                isAnalyzingAudio = false;
+            };
+        } catch (e) {
+            console.warn("Could not instantiate audio worker:", e);
+        }
+    }
+
+    function triggerWorkerAudioAnalysis(buffer) {
+        if (!buffer) return;
+        if (!audioWorker) initAudioWorker();
+
+        isAnalyzingAudio = true;
+        lastTriggeredDropIdx = -1;
+
+        const badge = document.getElementById('workerAnalysisBadge');
+        const bpmText = document.getElementById('workerBpmText');
+        if (badge) badge.classList.remove('hidden');
+        if (bpmText) bpmText.innerText = 'Analizando ritmo en Worker...';
+
+        try {
+            const channelData = buffer.getChannelData(0);
+            const copy = new Float32Array(channelData.length);
+            copy.set(channelData);
+
+            if (audioWorker) {
+                audioWorker.postMessage({
+                    type: 'ANALYZE_AUDIO',
+                    channelData: copy,
+                    sampleRate: buffer.sampleRate,
+                    duration: buffer.duration
+                }, [copy.buffer]);
+            }
+        } catch (err) {
+            console.error("Worker postMessage error:", err);
+            try {
+                if (audioWorker) {
+                    const channelData = buffer.getChannelData(0);
+                    audioWorker.postMessage({
+                        type: 'ANALYZE_AUDIO',
+                        channelData: channelData,
+                        sampleRate: buffer.sampleRate,
+                        duration: buffer.duration
+                    });
+                }
+            } catch(e) {
+                console.warn("Could not dispatch audio to worker", e);
+            }
+        }
+    }
+
+    function renderWaveformCanvas() {
+        const canvas = document.getElementById('waveformCanvas');
+        if (!canvas || !waveformPeaks || waveformPeaks.length === 0) return;
+
+        const wrapper = document.getElementById('waveformWrapper');
+        const rect = wrapper ? wrapper.getBoundingClientRect() : null;
+        const w = (rect && rect.width > 20) ? rect.width : (canvas.clientWidth || 320);
+        const h = (rect && rect.height > 10) ? rect.height : (canvas.clientHeight || 44);
+
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.round(w * dpr);
+        canvas.height = Math.round(h * dpr);
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const numBars = waveformPeaks.length;
+        const barSpacing = canvas.width / numBars;
+        const barWidth = Math.max(1.5 * dpr, barSpacing * 0.65);
+        const midY = canvas.height * 0.5;
+
+        const grad = ctx.createLinearGradient(0, 0, canvas.width, 0);
+        grad.addColorStop(0, '#00f5ff');
+        grad.addColorStop(0.5, '#ec4899');
+        grad.addColorStop(1, '#a855f7');
+
+        ctx.fillStyle = grad;
+
+        for (let i = 0; i < numBars; i++) {
+            const p = waveformPeaks[i];
+            const x = i * barSpacing;
+            const topH = Math.max(1 * dpr, p.max * (midY - 2 * dpr));
+            const btmH = Math.max(1 * dpr, -p.min * (midY - 2 * dpr));
+
+            ctx.fillRect(x, midY - topH, barWidth, topH);
+            ctx.globalAlpha = 0.55;
+            ctx.fillRect(x, midY, barWidth, btmH);
+            ctx.globalAlpha = 1.0;
+        }
+    }
+
+    function handleWaveformClick(e) {
+        if (!audioBuf || !audioDuration) return;
+        const wrapper = document.getElementById('waveformWrapper');
+        if (!wrapper) return;
+        const rect = wrapper.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const progress = Math.max(0, Math.min(1, clickX / rect.width));
+        seekAudio(progress * 100);
+    }
+
+    function updateWaveformPlayhead(progress) {
+        const playhead = document.getElementById('waveformPlayhead');
+        if (playhead) {
+            const pct = Math.max(0, Math.min(100, progress * 100));
+            playhead.style.left = pct + '%';
+        }
+    }
+
+    function renderDropMarkers() {
+        const container = document.getElementById('dropMarkersContainer');
+        if (!container) return;
+        container.innerHTML = '';
+        if (!detectedDrops || detectedDrops.length === 0 || !audioDuration) return;
+
+        detectedDrops.forEach(function(sec, idx) {
+            const pct = (sec / audioDuration) * 100;
+            if (pct < 0 || pct > 100) return;
+
+            const marker = document.createElement('div');
+            marker.className = 'absolute top-0 bottom-0 flex flex-col items-center pointer-events-auto cursor-pointer group z-10';
+            marker.style.left = pct + '%';
+            marker.style.transform = 'translateX(-50%)';
+            marker.title = 'Drop ' + (idx + 1) + ' (' + formatTime(sec) + ') - Toca para saltar';
+
+            marker.innerHTML = '<div class="w-2.5 h-2.5 rounded-full bg-amber-400 border border-white text-[7px] text-black font-black flex items-center justify-center shadow-[0_0_8px_#f59e0b] group-hover:scale-125 transition-transform">⚡</div><div class="w-0.5 flex-1 bg-amber-400/60 shadow-[0_0_6px_#f59e0b]"></div>';
+
+            marker.onclick = function(e) {
+                e.stopPropagation();
+                seekAudio((Math.max(0, sec - 0.5) / audioDuration) * 100);
+            };
+
+            container.appendChild(marker);
+        });
+    }
+
+    function updateDropJumpButton() {
+        const btn = document.getElementById('btnJumpDrop');
+        if (!btn) return;
+        if (detectedDrops && detectedDrops.length > 0) {
+            btn.style.display = 'inline-flex';
+            const lbl = document.getElementById('lblJumpDrop');
+            if (lbl) lbl.innerText = 'Saltar al Drop (' + detectedDrops.length + ')';
+        } else {
+            btn.style.display = 'none';
+        }
+    }
+
+    function jumpToNextDrop() {
+        if (!detectedDrops || detectedDrops.length === 0 || !audioBuf) return;
+        const curr = (audioCtx.currentTime - audioStartTime) % (audioDuration || 1);
+        let target = detectedDrops.find(function(d) { return d > curr + 1.0; });
+        if (typeof target === 'undefined') {
+            target = detectedDrops[0];
+        }
+        const seekTime = Math.max(0, target - 0.5);
+        seekAudio((seekTime / audioDuration) * 100);
+    }
+
+    function toggleAutoBpmSync(enabled) {
+        autoBpmSyncEnabled = !!enabled;
+        if (autoBpmSyncEnabled && detectedBpm > 0) {
+            applyBpmSync(detectedBpm);
+        }
+    }
+
+    function applyBpmSync(bpm) {
+        if (!bpm || bpm <= 0) return;
+        const factor = Math.max(0.65, Math.min(2.2, bpm / 125));
+        camSpeed = factor;
+        gridSpeedSens = factor;
+
+        const camSlider = document.getElementById('rngCamSpeed');
+        if (camSlider) camSlider.value = camSpeed;
+        const camLbl = document.getElementById('lblCamSpeed');
+        if (camLbl) camLbl.innerText = camSpeed.toFixed(1) + 'x';
+    }
+
+    function checkDropCrossing(currTime) {
+        if (!detectedDrops || detectedDrops.length === 0) return;
+        for (let i = 0; i < detectedDrops.length; i++) {
+            const dropTime = detectedDrops[i];
+            if (currTime >= dropTime && currTime <= dropTime + 0.25) {
+                if (lastTriggeredDropIdx !== i) {
+                    lastTriggeredDropIdx = i;
+                    strobeActive = true;
+                    setTimeout(function() { strobeActive = false; }, 220);
+                    bass = 1.0;
+                }
+                break;
+            }
+        }
+    }
+
+    function updateExportDropSuggestions() {
+        const container = document.getElementById('exportDropQuickBtnContainer');
+        if (!container) return;
+        container.innerHTML = '';
+        if (!detectedDrops || detectedDrops.length === 0) return;
+
+        const header = document.createElement('div');
+        header.className = 'w-full text-[8px] text-amber-300 font-mono mb-0.5 flex items-center gap-1';
+        header.innerHTML = '<i class="fa-solid fa-bolt text-[7px]"></i> Iniciar video en el Drop:';
+        container.appendChild(header);
+
+        detectedDrops.slice(0, 4).forEach(function(sec, idx) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 border border-amber-500/40 text-[8px] font-mono transition flex items-center gap-1 active:scale-95';
+            btn.innerHTML = '⚡ Drop ' + (idx + 1) + ' (' + formatTime(sec) + ')';
+            btn.onclick = function() {
+                setExportStartTime(Math.max(0, sec - 1.0));
+            };
+            container.appendChild(btn);
+        });
+    }
+
+    function setExportStartTime(sec) {
+        const input = document.getElementById('exportStartTime');
+        if (input) {
+            input.value = Math.floor(sec);
+            const lbl = document.getElementById('exportStartTimeLabel');
+            if (lbl) lbl.innerText = formatTime(input.value);
+            updateExportEstimate();
+        }
+    }
+
+    window.addEventListener('resize', function() {
+        if (waveformPeaks && waveformPeaks.length > 0) {
+            renderWaveformCanvas();
+            renderDropMarkers();
+        }
+    });
     </script>
 
     <!-- ======================================================== -->
@@ -3383,6 +3834,7 @@
                         <span id="exportStartTimeLabel" class="text-cyan-400 font-mono">0:00</span>
                     </label>
                     <input type="range" id="exportStartTime" min="0" max="0" value="0" step="1" oninput="document.getElementById('exportStartTimeLabel').innerText = formatTime(this.value)" class="w-full mt-2">
+                    <div id="exportDropQuickBtnContainer" class="mt-1 flex flex-wrap gap-1"></div>
                 </div>
             </div>
 
